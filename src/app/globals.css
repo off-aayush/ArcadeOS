@@ -1,0 +1,130 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ArcadeOS Global Styles
+   Dark gaming aesthetic — glassmorphism, glow effects, custom scrollbar
+───────────────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  :root {
+    --font-geist-sans: "Inter", system-ui, sans-serif;
+    --font-geist-mono: "JetBrains Mono", monospace;
+  }
+
+  * {
+    @apply border-surface-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+    font-size: 16px;
+  }
+
+  body {
+    @apply bg-surface text-white antialiased;
+    background-image: radial-gradient(
+        ellipse 80% 60% at 50% -20%,
+        hsl(262 83% 58% / 0.12),
+        transparent
+      ),
+      radial-gradient(
+        ellipse 60% 40% at 80% 80%,
+        hsl(195 100% 50% / 0.06),
+        transparent
+      );
+    min-height: 100dvh;
+  }
+
+  /* Custom scrollbar — webkit */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-surface;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-surface-border;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-surface-muted;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-brand/40 text-white;
+  }
+}
+
+@layer components {
+  /* ── Glass Card ──────────────────────────────────────────────────────────── */
+  .glass-card {
+    @apply rounded-2xl border border-surface-border bg-surface-card/80 shadow-card backdrop-blur-sm;
+  }
+
+  /* ── Glass Card with Brand Glow ──────────────────────────────────────────── */
+  .glass-card-glow {
+    @apply glass-card shadow-glow-brand;
+  }
+
+  /* ── Gradient Text ───────────────────────────────────────────────────────── */
+  .gradient-text {
+    @apply bg-gradient-brand bg-clip-text text-transparent;
+  }
+
+  /* ── Status Dot (animated) ───────────────────────────────────────────────── */
+  .status-dot {
+    @apply relative inline-flex h-2.5 w-2.5 rounded-full;
+  }
+  .status-dot::before {
+    content: "";
+    @apply absolute inset-0 animate-ping rounded-full opacity-75;
+    background: inherit;
+  }
+
+  /* ── Sidebar Nav Item ────────────────────────────────────────────────────── */
+  .nav-item {
+    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium
+           text-surface-muted transition-all duration-200
+           hover:bg-surface-hover hover:text-white;
+  }
+  .nav-item.active {
+    @apply bg-brand/15 text-brand shadow-glow-brand;
+  }
+
+  /* ── Button Variants (extend shadcn when needed) ─────────────────────────── */
+  .btn-glow {
+    @apply shadow-glow-brand transition-shadow hover:shadow-glow-brand;
+  }
+
+  /* ── Table Row Hover ─────────────────────────────────────────────────────── */
+  .table-row-hover {
+    @apply cursor-pointer transition-colors hover:bg-surface-hover;
+  }
+}
+
+@layer utilities {
+  /* ── Animate Fade In ─────────────────────────────────────────────────────── */
+  .animate-in {
+    @apply animate-fade-in;
+  }
+
+  /* ── No scrollbar ────────────────────────────────────────────────────────── */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ── Truncate 2 lines ────────────────────────────────────────────────────── */
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+}
