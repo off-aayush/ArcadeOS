@@ -59,7 +59,7 @@ async function main() {
 
   for (const s of stationData) {
     await prisma.station.upsert({
-      where: { name: s.name } as never,
+      where: { name: s.name },
       update: {},
       create: {
         name: s.name,
@@ -86,7 +86,7 @@ async function main() {
 
   for (const item of foodItems) {
     await prisma.foodItem.upsert({
-      where: { name: item.name } as never,
+      where: { name: item.name },
       update: {},
       create: {
         name: item.name,

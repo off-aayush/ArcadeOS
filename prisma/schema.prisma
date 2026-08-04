@@ -154,7 +154,7 @@ enum PricingModel {
 /// Soft delete via deletedAt so historical sessions remain intact.
 model Station {
   id             String        @id @default(cuid())
-  name           String        // Display name e.g. "PS5 - Station 01"
+  name           String        @unique // Display name e.g. "PS5 - Station 01"
   type           StationType
   status         StationStatus @default(AVAILABLE)
 
@@ -339,7 +339,7 @@ model BillItem {
 /// Soft delete keeps historical bill items intact.
 model FoodItem {
   id          String      @id @default(cuid())
-  name        String
+  name        String       @unique
   category    FoodCategory
   price       Decimal     @db.Decimal(10, 2)
   description String?
