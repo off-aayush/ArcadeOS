@@ -1,0 +1,500 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// ArcadeOS — Prisma Schema
+// Migration: 001_initial
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENUMS
+// Using enums instead of raw strings for all status/category fields.
+// This enforces valid states at the database level and gives us
+// exhaustive checks in TypeScript via the Prisma generated types.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// The type of gaming hardware at a station
+enum StationType {
+  PS5
+  PS4
+  PC
+  RACING_SIMULATOR
+  VR
+  XBOX
+  SWITCH
+  OTHER
+}
+
+/// The operational status of a station
+enum StationStatus {
+  AVAILABLE   // ready to be assigned
+  OCCUPIED    // actively in use by a session
+  MAINTENANCE // taken offline for repair
+  RESERVED    // pre-booked, not yet started
+  OFFLINE     // powered down
+}
+
+/// Gender field on customer (kept simple; extendable)
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+/// The lifecycle state of a gaming session
+enum SessionStatus {
+  ACTIVE    // timer running
+  PAUSED    // timer paused (e.g. snack break)
+  COMPLETED // session ended, bill may be generated
+  CANCELLED // voided before billing
+}
+
+/// Whether a bill has been settled
+enum BillStatus {
+  DRAFT     // session still active, bill not finalised
+  PENDING   // session ended, awaiting payment
+  PAID      // fully paid
+  PARTIALLY_PAID // partial payment received
+  VOIDED    // cancelled without collection
+}
+
+/// The kind of line-item on a bill
+enum BillItemType {
+  SESSION_TIME   // the core time charge
+  FOOD           // food item
+  DRINK          // beverage item
+  DISCOUNT       // discount (stored as negative amount)
+  MANUAL_CREDIT  // manual price reduction by staff
+  MANUAL_CHARGE  // manual surcharge by staff
+  ROUNDING       // rounding adjustment to nearest integer
+}
+
+/// How a discount is calculated
+enum DiscountType {
+  PERCENTAGE   // e.g. 10%
+  FIXED_AMOUNT // e.g. ₹50 flat
+}
+
+/// Category of a food/drink catalogue item
+enum FoodCategory {
+  SNACKS
+  MEALS
+  BEVERAGES_HOT
+  BEVERAGES_COLD
+  DESSERTS
+  COMBOS
+}
+
+/// Payment method
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  WALLET
+  COMPLIMENTARY
+}
+
+/// Payment status
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+/// Role of a system user (receptionist or admin)
+enum UserRole {
+  RECEPTIONIST
+  ADMIN
+  SUPER_ADMIN
+}
+
+/// The type of action recorded in audit log
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  SESSION_START
+  SESSION_PAUSE
+  SESSION_RESUME
+  SESSION_STOP
+  BILL_GENERATED
+  PAYMENT_RECEIVED
+  DISCOUNT_APPLIED
+  STATION_STATUS_CHANGED
+}
+
+/// Membership plan tier
+enum MembershipTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+/// Pricing model for a station — flat rate or per-minute
+enum PricingModel {
+  PER_HOUR   // billed per hour (most common)
+  PER_MINUTE // billed per minute for fine-grained billing
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODELS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Represents a physical gaming unit in the lounge.
+/// A station has a type, a pricing model, and an operational status.
+/// Soft delete via deletedAt so historical sessions remain intact.
+model Station {
+  id             String        @id @default(cuid())
+  name           String        // Display name e.g. "PS5 - Station 01"
+  type           StationType
+  status         StationStatus @default(AVAILABLE)
+
+  // Pricing
+  pricingModel   PricingModel  @default(PER_HOUR)
+  ratePerHour    Decimal       @db.Decimal(10, 2) // stored in INR
+  ratePerMinute  Decimal?      @db.Decimal(10, 4) // optional override
+
+  // Physical info
+  description    String?
+  imageUrl       String?
+  maxPlayers     Int           @default(1)
+  location       String?       // e.g. "Floor 1 - Row A"
+
+  // Soft delete
+  isActive       Boolean       @default(true)
+  deletedAt      DateTime?
+
+  // Timestamps
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  sessions       Session[]
+
+  @@index([status])
+  @@index([type])
+  @@index([isActive])
+  @@map("stations")
+}
+
+/// Represents a customer — walk-in or registered.
+/// A customer can have multiple sessions and a membership.
+model Customer {
+  id           String      @id @default(cuid())
+  name         String
+  phone        String?     @unique
+  email        String?     @unique
+  gender       Gender?
+  dateOfBirth  DateTime?
+
+  // Loyalty / Notes
+  notes        String?
+  totalVisits  Int         @default(0)
+  totalSpend   Decimal     @default(0) @db.Decimal(12, 2)
+
+  // Soft delete — preserves billing history
+  isActive     Boolean     @default(true)
+  deletedAt    DateTime?
+
+  // Timestamps
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  sessions     Session[]
+  membership   Membership?
+
+  @@index([phone])
+  @@index([email])
+  @@index([isActive])
+  @@map("customers")
+}
+
+/// A single gaming session on a station by a customer.
+/// Holds the start/end timestamps and the effective pricing at session start.
+/// We snapshot ratePerHour so price changes don't affect in-progress sessions.
+model Session {
+  id              String        @id @default(cuid())
+  status          SessionStatus @default(ACTIVE)
+
+  // Participants
+  stationId       String
+  station         Station       @relation(fields: [stationId], references: [id])
+  customerId      String?       // nullable: walk-in without registration
+  customer        Customer?     @relation(fields: [customerId], references: [id])
+  startedById     String        // receptionist who started the session
+  startedBy       User          @relation("SessionStartedBy", fields: [startedById], references: [id])
+  stoppedById     String?       // receptionist who ended the session
+  stoppedBy       User?         @relation("SessionStoppedBy", fields: [stoppedById], references: [id])
+
+  // Timing
+  startTime       DateTime      @default(now())
+  endTime         DateTime?
+  pausedAt        DateTime?     // when the session was last paused
+  totalPausedMs   Int           @default(0) // cumulative paused duration in milliseconds
+
+  // Pricing snapshot — captured at session start
+  ratePerHour     Decimal       @db.Decimal(10, 2)
+  pricingModel    PricingModel
+
+  // Player info
+  playerCount     Int           @default(1)
+  notes           String?
+
+  // Timestamps
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  bill            Bill?
+
+  @@index([stationId, status])
+  @@index([customerId])
+  @@index([status])
+  @@index([startTime])
+  @@map("sessions")
+}
+
+/// A bill represents the complete invoice for a session.
+/// It aggregates all BillItems (time, food, discounts, adjustments).
+model Bill {
+  id             String     @id @default(cuid())
+  billNumber     String     @unique // human-readable e.g. "BILL-20240801-0001"
+  status         BillStatus @default(DRAFT)
+
+  // Linked session (1-to-1)
+  sessionId      String     @unique
+  session        Session    @relation(fields: [sessionId], references: [id])
+
+  // Issued by
+  issuedById     String
+  issuedBy       User       @relation(fields: [issuedById], references: [id])
+
+  // Financial summary (denormalised for fast reads and receipts)
+  subtotal       Decimal    @db.Decimal(12, 2) // sum of positive items
+  discountTotal  Decimal    @default(0) @db.Decimal(12, 2)
+  adjustmentTotal Decimal   @default(0) @db.Decimal(12, 2) // net manual adjustments
+  roundingAmount Decimal    @default(0) @db.Decimal(12, 2) // +/- rounding diff
+  grandTotal     Decimal    @db.Decimal(12, 2) // final amount charged
+
+  // Payment summary
+  amountPaid     Decimal    @default(0) @db.Decimal(12, 2)
+  amountDue      Decimal    @db.Decimal(12, 2)
+
+  // Notes for the receipt
+  notes          String?
+
+  // Timestamps
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  paidAt         DateTime?
+
+  // Relations
+  items          BillItem[]
+  payments       Payment[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([billNumber])
+  @@map("bills")
+}
+
+/// Each line-item on a bill.
+/// Supports time charges, food/drinks, discounts, manual adjustments and rounding.
+model BillItem {
+  id          String       @id @default(cuid())
+  billId      String
+  bill        Bill         @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  type        BillItemType
+  description String       // human-readable label on the receipt
+  quantity    Decimal      @default(1) @db.Decimal(10, 4)
+  unitPrice   Decimal      @db.Decimal(12, 2) // can be negative for discounts
+  totalPrice  Decimal      @db.Decimal(12, 2) // quantity × unitPrice
+
+  // Optional refs
+  foodItemId  String?
+  foodItem    FoodItem?    @relation(fields: [foodItemId], references: [id])
+  discountId  String?
+  discount    Discount?    @relation(fields: [discountId], references: [id])
+
+  // Timestamps
+  createdAt   DateTime     @default(now())
+
+  @@index([billId])
+  @@index([type])
+  @@map("bill_items")
+}
+
+/// Food and drink catalogue. Items can be added to bills.
+/// Soft delete keeps historical bill items intact.
+model FoodItem {
+  id          String      @id @default(cuid())
+  name        String
+  category    FoodCategory
+  price       Decimal     @db.Decimal(10, 2)
+  description String?
+  imageUrl    String?
+  isAvailable Boolean     @default(true)
+
+  // Soft delete
+  deletedAt   DateTime?
+
+  // Timestamps
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  billItems   BillItem[]
+
+  @@index([category])
+  @@index([isAvailable])
+  @@map("food_items")
+}
+
+/// Named discount templates that receptionists can apply.
+/// Both percentage and fixed-amount types supported.
+model Discount {
+  id          String       @id @default(cuid())
+  name        String       // e.g. "Weekend Special", "Student Discount"
+  code        String?      @unique // optional short code
+  type        DiscountType
+  value       Decimal      @db.Decimal(10, 2) // % or ₹ depending on type
+  maxAmount   Decimal?     @db.Decimal(10, 2) // cap for percentage discounts
+  minBillAmount Decimal?   @db.Decimal(10, 2) // minimum bill to qualify
+  isActive    Boolean      @default(true)
+  validFrom   DateTime?
+  validUntil  DateTime?
+
+  // Timestamps
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  billItems   BillItem[]
+
+  @@index([isActive])
+  @@index([code])
+  @@map("discounts")
+}
+
+/// Membership record for a customer.
+/// One customer → one membership record (tier can be upgraded).
+model Membership {
+  id           String         @id @default(cuid())
+  customerId   String         @unique
+  customer     Customer       @relation(fields: [customerId], references: [id])
+  tier         MembershipTier @default(BRONZE)
+
+  // Benefits
+  discountPct  Decimal        @default(0) @db.Decimal(5, 2) // e.g. 10.00 = 10%
+  freeMinutes  Int            @default(0) // complimentary minutes per visit
+  points       Int            @default(0) // loyalty points
+
+  // Validity
+  startDate    DateTime       @default(now())
+  expiryDate   DateTime?
+
+  isActive     Boolean        @default(true)
+
+  // Timestamps
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([tier])
+  @@index([isActive])
+  @@map("memberships")
+}
+
+/// Payment record for a bill.
+/// A bill can have multiple partial payments.
+model Payment {
+  id            String        @id @default(cuid())
+  billId        String
+  bill          Bill          @relation(fields: [billId], references: [id])
+  receivedById  String
+  receivedBy    User          @relation(fields: [receivedById], references: [id])
+
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  amount        Decimal       @db.Decimal(12, 2)
+
+  // Reference info (UPI txn ID, card last 4, etc.)
+  reference     String?
+  notes         String?
+
+  // Timestamps
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([billId])
+  @@index([method])
+  @@index([status])
+  @@map("payments")
+}
+
+/// System user — receptionist or admin.
+/// Auth is handled separately; this model stores profile + role.
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  phone        String?
+  role         UserRole  @default(RECEPTIONIST)
+  avatarUrl    String?
+
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+
+  // Soft delete
+  deletedAt    DateTime?
+
+  // Timestamps
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations — all actions this user performed
+  sessionsStarted  Session[]   @relation("SessionStartedBy")
+  sessionsStopped  Session[]   @relation("SessionStoppedBy")
+  billsIssued      Bill[]
+  paymentsReceived Payment[]
+  auditLogs        AuditLog[]
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@map("users")
+}
+
+/// Immutable audit trail. Never updated or deleted.
+/// Records every significant state change across the system.
+model AuditLog {
+  id         String      @id @default(cuid())
+  action     AuditAction
+  entityType String      // e.g. "Session", "Bill", "Station"
+  entityId   String      // the ID of the affected record
+  userId     String?     // who performed the action (null = system)
+  user       User?       @relation(fields: [userId], references: [id])
+
+  // JSON snapshot of relevant data (before/after state)
+  metadata   Json?
+
+  // Immutable timestamp — no updatedAt
+  createdAt  DateTime    @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
