@@ -1,7 +1,5 @@
-# ArcadeOS Development Status
-
 ## Current Phase
-🟡 Phase 1 - Dashboard Foundation
+🟡 Phase 2 - Station Management
 
 ---
 
@@ -12,13 +10,15 @@
 - [x] Seed
 - [x] Providers
 - [x] Utilities
+- [x] Dashboard Layout
+- [x] Station Grid & API Endpoint (Phase 1)
 
 ---
 
 ## In Progress
 
-- [ ] Dashboard
-- [ ] Station Grid
+- [x] Dashboard
+- [x] Station Grid
 
 ---
 
