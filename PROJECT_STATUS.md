@@ -1,5 +1,5 @@
 ## Current Phase
-🟡 Phase 4 - Gaming Sessions
+🟡 Phase 5 - Dashboard
 
 ---
 
@@ -14,13 +14,14 @@
 - [x] Station Grid & API Endpoint (Phase 1)
 - [x] Station CRUD
 - [x] Customer Module (types, validators, service, API, components, page)
+- [x] Session Engine (Start, Pause, Stop, History, Live Timer)
 
 ---
 
 ## In Progress
 
-- [ ] Session Engine (Start, Pause, Stop)
-- [ ] Live Timer Integration
+- [ ] Live Cards
+- [ ] Running Timers Overview
 
 ---
 
