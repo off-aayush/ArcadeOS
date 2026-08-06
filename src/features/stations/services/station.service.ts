@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { StationQueryParams, StationListItem } from "../types";
 import { DashboardStats } from "@/types";
+import { Prisma, Station } from "@prisma/client";
 
 export class StationService {
   /**
@@ -53,6 +54,111 @@ export class StationService {
     });
 
     return stations as StationListItem[];
+  }
+
+  /**
+   * Retrieves a single station by its ID, with active sessions.
+   */
+  static async getById(id: string): Promise<StationListItem | null> {
+    const station = await prisma.station.findFirst({
+      where: {
+        id,
+        isActive: true,
+        deletedAt: null,
+      },
+      include: {
+        sessions: {
+          where: {
+            status: "ACTIVE",
+          },
+          include: {
+            customer: true,
+            startedBy: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    return station as StationListItem | null;
+  }
+
+  /**
+   * Creates a new station in the database.
+   */
+  static async create(data: Omit<Prisma.StationCreateInput, "status">): Promise<Station> {
+    return prisma.station.create({
+      data: {
+        ...data,
+        status: "AVAILABLE",
+      },
+    });
+  }
+
+  /**
+   * Updates an existing station. Protects occupied stations from being set to maintenance or offline.
+   */
+  static async update(id: string, data: Prisma.StationUpdateInput): Promise<Station> {
+    const current = await prisma.station.findUnique({
+      where: { id },
+      include: {
+        sessions: {
+          where: { status: "ACTIVE" },
+        },
+      },
+    });
+
+    if (!current) {
+      throw new Error("Station not found");
+    }
+
+    // Business Logic: Active session validation
+    if (current.sessions.length > 0) {
+      if (data.status && data.status !== "OCCUPIED") {
+        throw new Error("Cannot change status of a station with an active session");
+      }
+      if (data.isActive === false) {
+        throw new Error("Cannot deactivate a station with an active session");
+      }
+    }
+
+    return prisma.station.update({
+      where: { id },
+      data,
+    });
+  }
+
+  /**
+   * Performs soft deletion on a station to preserve historical session data.
+   */
+  static async delete(id: string): Promise<Station> {
+    const current = await prisma.station.findUnique({
+      where: { id },
+      include: {
+        sessions: {
+          where: { status: "ACTIVE" },
+        },
+      },
+    });
+
+    if (!current) {
+      throw new Error("Station not found");
+    }
+
+    if (current.sessions.length > 0) {
+      throw new Error("Cannot delete a station with an active session");
+    }
+
+    return prisma.station.update({
+      where: { id },
+      data: {
+        isActive: false,
+        deletedAt: new Date(),
+      },
+    });
   }
 
   /**

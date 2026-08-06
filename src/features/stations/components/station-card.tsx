@@ -5,11 +5,12 @@ import { StationListItem } from "../types";
 import { StationStatusBadge } from "./station-status-badge";
 import { STATION_TYPE_LABELS } from "@/lib/constants";
 import { formatCurrency, formatTimer } from "@/lib/utils";
-import { Monitor, Laptop, Gamepad, Trophy, HelpCircle, Users } from "lucide-react";
+import { Monitor, Laptop, Gamepad, Trophy, HelpCircle, Users, Edit2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface StationCardProps {
   station: StationListItem;
+  onEdit?: (station: StationListItem) => void;
 }
 
 const TYPE_ICONS = {
@@ -23,7 +24,7 @@ const TYPE_ICONS = {
   OTHER: HelpCircle,
 } as const;
 
-export function StationCard({ station }: StationCardProps) {
+export function StationCard({ station, onEdit }: StationCardProps) {
   const activeSession = station.sessions[0];
   const [elapsedMs, setElapsedMs] = useState<number>(0);
 
@@ -38,7 +39,6 @@ export function StationCard({ station }: StationCardProps) {
       const now = Date.now();
       const pausedTime = activeSession.totalPausedMs || 0;
       
-      // If paused right now, calculate up to the paused timestamp
       if (activeSession.pausedAt) {
         const pausedAtTime = new Date(activeSession.pausedAt).getTime();
         setElapsedMs(Math.max(0, pausedAtTime - start - pausedTime));
@@ -54,7 +54,6 @@ export function StationCard({ station }: StationCardProps) {
 
   const IconComponent = TYPE_ICONS[station.type as keyof typeof TYPE_ICONS] || HelpCircle;
 
-  // Visual glows depending on status
   const cardGlow =
     station.status === "AVAILABLE"
       ? "shadow-glow-success border-success/30 hover:border-success/50"
@@ -65,12 +64,23 @@ export function StationCard({ station }: StationCardProps) {
   return (
     <div
       className={cn(
-        "glass-card p-6 flex flex-col gap-5 transition-all duration-300 hover:-translate-y-1",
+        "glass-card p-6 flex flex-col gap-5 transition-all duration-300 hover:-translate-y-1 relative group",
         cardGlow
       )}
     >
+      {/* Edit Trigger */}
+      {onEdit && (
+        <button
+          onClick={() => onEdit(station)}
+          className="absolute top-4 right-4 p-1.5 rounded-lg bg-surface border border-surface-border text-surface-muted opacity-0 group-hover:opacity-100 hover:text-white transition-opacity cursor-pointer"
+          title="Edit Station"
+        >
+          <Edit2 className="h-3.5 w-3.5" />
+        </button>
+      )}
+
       {/* Top Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between pr-6">
         <div className="space-y-1">
           <h3 className="font-bold text-lg text-white leading-tight">{station.name}</h3>
           <p className="text-xs text-surface-muted flex items-center gap-1.5">
@@ -78,7 +88,9 @@ export function StationCard({ station }: StationCardProps) {
             {STATION_TYPE_LABELS[station.type as keyof typeof STATION_TYPE_LABELS] || station.type}
           </p>
         </div>
-        <StationStatusBadge status={station.status} />
+        <div className="shrink-0">
+          <StationStatusBadge status={station.status} />
+        </div>
       </div>
 
       {/* Dynamic Content Body based on state */}
