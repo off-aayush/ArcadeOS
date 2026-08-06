@@ -9,7 +9,11 @@ import { API_ROUTES, STATION_STALE_TIME } from "@/lib/constants";
 import { ApiResponse } from "@/types";
 import { StationListItem } from "../types";
 
-export function StationGrid() {
+export interface StationGridProps {
+  onEdit?: (station: StationListItem) => void;
+}
+
+export function StationGrid({ onEdit }: StationGridProps = {}) {
   const { data, isLoading, isError, error, refetch } = useQuery<ApiResponse<StationListItem[]>>({
     queryKey: ["stations"],
     queryFn: async () => {
@@ -57,7 +61,7 @@ export function StationGrid() {
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {stations.map((station) => (
-        <StationCard key={station.id} station={station} />
+        <StationCard key={station.id} station={station} onEdit={onEdit ? () => onEdit(station) : undefined} />
       ))}
     </div>
   );

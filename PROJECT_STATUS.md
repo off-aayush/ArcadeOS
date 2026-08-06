@@ -1,5 +1,5 @@
 ## Current Phase
-🟡 Phase 2 - Station Management
+🟡 Phase 3 - Customer Module
 
 ---
 
@@ -12,20 +12,19 @@
 - [x] Utilities
 - [x] Dashboard Layout
 - [x] Station Grid & API Endpoint (Phase 1)
+- [x] Station CRUD
 
 ---
 
 ## In Progress
 
-- [x] Dashboard
-- [x] Station Grid
+- [ ] Customer Management
+- [ ] Customer Grid
 
 ---
 
 ## Pending
 
-- [ ] Station CRUD
-- [ ] Customer Module
 - [ ] Session Engine
 - [ ] Billing
 - [ ] Inventory
