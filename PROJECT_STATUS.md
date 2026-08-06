@@ -1,5 +1,5 @@
 ## Current Phase
-🟡 Phase 2 - Station Management
+🟡 Phase 4 - Gaming Sessions
 
 ---
 
@@ -12,21 +12,20 @@
 - [x] Utilities
 - [x] Dashboard Layout
 - [x] Station Grid & API Endpoint (Phase 1)
+- [x] Station CRUD
+- [x] Customer Module (types, validators, service, API, components, page)
 
 ---
 
 ## In Progress
 
-- [x] Dashboard
-- [x] Station Grid
+- [ ] Session Engine (Start, Pause, Stop)
+- [ ] Live Timer Integration
 
 ---
 
 ## Pending
 
-- [ ] Station CRUD
-- [ ] Customer Module
-- [ ] Session Engine
 - [ ] Billing
 - [ ] Inventory
 - [ ] Reports

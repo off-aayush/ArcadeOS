@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { StationService } from "@/features/stations/services/station.service";
-import { stationQuerySchema, stationCreateSchema } from "@/features/stations/validators";
+import { CustomerService } from "@/features/customers/services/customer.service";
+import { customerQuerySchema, customerCreateSchema } from "@/features/customers/validators";
 import { createSuccessResponse, createErrorResponse } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const rawParams = {
-      status: searchParams.get("status") || "ALL",
-      type: searchParams.get("type") || "ALL",
       search: searchParams.get("search") || undefined,
+      status: searchParams.get("status") || "active",
+      page: searchParams.get("page") || "1",
+      pageSize: searchParams.get("pageSize") || "20",
     };
 
-    const parsed = stationQuerySchema.safeParse(rawParams);
+    const parsed = customerQuerySchema.safeParse(rawParams);
     if (!parsed.success) {
       return NextResponse.json(
         createErrorResponse("Invalid query parameters", "VALIDATION_ERROR"),
@@ -20,10 +21,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const stations = await StationService.getAll(parsed.data);
-    return NextResponse.json(createSuccessResponse(stations));
+    const result = await CustomerService.getAll(parsed.data);
+    return NextResponse.json(createSuccessResponse(result));
   } catch (error: any) {
-    console.error("API Error in GET /api/stations:", error);
+    console.error("API Error in GET /api/customers:", error);
     return NextResponse.json(
       createErrorResponse("Internal server error"),
       { status: 500 }
@@ -34,8 +35,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const parsed = stationCreateSchema.safeParse(body);
-    
+    const parsed = customerCreateSchema.safeParse(body);
+
     if (!parsed.success) {
       return NextResponse.json(
         createErrorResponse((parsed.error as any).errors[0]?.message || "Invalid request body", "VALIDATION_ERROR"),
@@ -43,13 +44,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const station = await StationService.create(parsed.data);
-    return NextResponse.json(createSuccessResponse(station, "Station created successfully"), { status: 210 });
+    const { dateOfBirth, ...rest } = parsed.data;
+    const customer = await CustomerService.create({
+      ...rest,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+    });
+
+    return NextResponse.json(createSuccessResponse(customer, "Customer created successfully"), { status: 201 });
   } catch (error: any) {
-    console.error("API Error in POST /api/stations:", error);
+    console.error("API Error in POST /api/customers:", error);
     if (error.code === "P2002") {
       return NextResponse.json(
-        createErrorResponse("A station with this name already exists", "DUPLICATE_NAME"),
+        createErrorResponse("A customer with this phone or email already exists", "DUPLICATE"),
         { status: 400 }
       );
     }
