@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { stationUpdateSchema } from "../../validators";
+import { stationUpdateSchema } from "../validators";
 import { StationListItem } from "../types";
 import { StationType, PricingModel, StationStatus } from "@prisma/client";
 import {
@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { STATION_TYPE_LABELS } from "@/lib/constants";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/components/ui/toast";
 
 interface StationEditDialogProps {
   station: StationListItem | null;
@@ -54,7 +54,7 @@ export function StationEditDialog({
   onSuccess,
 }: StationEditDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
+
 
   const {
     register,
@@ -64,7 +64,7 @@ export function StationEditDialog({
     reset,
     formState: { errors },
   } = useForm<StationFormValues>({
-    resolver: zodResolver(stationUpdateSchema),
+    resolver: zodResolver(stationUpdateSchema) as any,
   });
 
   const selectedType = watch("type");
@@ -118,17 +118,18 @@ export function StationEditDialog({
         throw new Error(data.error || "Failed to update station");
       }
 
-      toast({
+      toast.add({
         title: "Success",
         description: "Station updated successfully",
+        type: "success",
       });
       onSuccess();
       onClose();
     } catch (err: any) {
-      toast({
+      toast.add({
         title: "Error",
         description: err.message || "An unexpected error occurred",
-        variant: "destructive",
+        type: "error",
       });
     } finally {
       setIsSubmitting(false);
@@ -142,7 +143,7 @@ export function StationEditDialog({
           <DialogTitle className="text-xl font-bold tracking-tight">Edit Station — {station.name}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
+        <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             {/* Station Name */}
             <div className="col-span-2 space-y-1.5">

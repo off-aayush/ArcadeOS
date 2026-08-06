@@ -39,7 +39,7 @@ export async function PATCH(
 
     if (!parsed.success) {
       return NextResponse.json(
-        createErrorResponse(parsed.error.errors[0]?.message || "Invalid request body", "VALIDATION_ERROR"),
+        createErrorResponse((parsed.error as any).errors[0]?.message || "Invalid request body", "VALIDATION_ERROR"),
         { status: 400 }
       );
     }

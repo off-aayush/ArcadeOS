@@ -8,6 +8,7 @@ import { StationListItem } from "@/features/stations/types";
 
 export default function StationsPage() {
   const [editingStation, setEditingStation] = useState<StationListItem | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   return (
     <div className="flex flex-col space-y-6">
@@ -19,7 +20,17 @@ export default function StationsPage() {
           </p>
         </div>
         <div className="flex items-center space-x-2">
-          <StationCreateDialog />
+          <button 
+            onClick={() => setIsCreateOpen(true)}
+            className="rounded-lg bg-brand hover:bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-glow-brand transition-all active:scale-95"
+          >
+            + Create Station
+          </button>
+          <StationCreateDialog 
+            isOpen={isCreateOpen}
+            onClose={() => setIsCreateOpen(false)}
+            onSuccess={() => window.location.reload()}
+          />
         </div>
       </div>
 
@@ -27,11 +38,10 @@ export default function StationsPage() {
 
       {editingStation && (
         <StationEditDialog
-          stationId={editingStation.id}
-          open={!!editingStation}
-          onOpenChange={(open) => {
-            if (!open) setEditingStation(null);
-          }}
+          station={editingStation}
+          isOpen={!!editingStation}
+          onClose={() => setEditingStation(null)}
+          onSuccess={() => window.location.reload()}
         />
       )}
     </div>
