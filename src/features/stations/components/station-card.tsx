@@ -10,6 +10,7 @@ import { Monitor, Laptop, Gamepad, Trophy, HelpCircle, Users, Edit2, Pause, Play
 import { cn } from "@/lib/utils";
 import { StartSessionDialog } from "@/features/sessions/components/start-session-dialog";
 import { toast } from "@/components/ui/toast";
+import { BillDetailDialog } from "@/features/billing/components/bill-detail-dialog";
 
 interface StationCardProps {
   station: StationListItem;
@@ -33,6 +34,7 @@ export function StationCard({ station, onEdit }: StationCardProps) {
   const [elapsedMs, setElapsedMs] = useState<number>(0);
   const [isStartOpen, setIsStartOpen] = useState(false);
   const [isActing, setIsActing] = useState(false);
+  const [billingSessionId, setBillingSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeSession) {
@@ -83,6 +85,10 @@ export function StationCard({ station, onEdit }: StationCardProps) {
       const labels = { pause: "Paused", resume: "Resumed", stop: "Stopped" };
       toast.add({ title: `Session ${labels[action]}`, description: `${station.name} session ${action}d.`, type: "success" });
       queryClient.invalidateQueries({ queryKey: ["stations"] });
+      
+      if (action === "stop") {
+        setBillingSessionId(activeSession.id);
+      }
     } catch (err: any) {
       toast.add({ title: "Error", description: err.message, type: "error" });
     } finally {
@@ -202,6 +208,13 @@ export function StationCard({ station, onEdit }: StationCardProps) {
         station={station}
         isOpen={isStartOpen}
         onClose={() => setIsStartOpen(false)}
+      />
+
+      {/* Bill Generation Dialog */}
+      <BillDetailDialog
+        sessionId={billingSessionId ?? undefined}
+        isOpen={!!billingSessionId}
+        onClose={() => setBillingSessionId(null)}
       />
     </>
   );
