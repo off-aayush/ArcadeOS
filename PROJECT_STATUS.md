@@ -1,5 +1,5 @@
 ## Current Phase
-🟡 Phase 5 - Dashboard
+🟡 Phase 6 - Inventory
 
 ---
 
@@ -15,13 +15,15 @@
 - [x] Station CRUD
 - [x] Customer Module (types, validators, service, API, components, page)
 - [x] Session Engine (Start, Pause, Stop, History, Live Timer)
+- [x] Live Cards (Dashboard Phase)
+- [x] Running Timers Overview (Dashboard Phase)
 
 ---
 
 ## In Progress
 
-- [ ] Live Cards
-- [ ] Running Timers Overview
+- [ ] Products & Categories
+- [ ] Stock Management
 
 ---
 
