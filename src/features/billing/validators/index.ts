@@ -1,0 +1,19 @@
+import { z } from "zod";
+
+// ── Generate a bill from a completed session ──────────────────────────────────
+export const generateBillSchema = z.object({
+  sessionId: z.string().min(1, "Session ID is required"),
+});
+
+// ── Query params for listing bills ────────────────────────────────────────────
+export const billQuerySchema = z.object({
+  status: z
+    .enum(["ALL", "DRAFT", "PENDING", "PAID", "PARTIALLY_PAID", "VOIDED"])
+    .optional()
+    .default("ALL"),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+});
+
+export type GenerateBillInput = z.infer<typeof generateBillSchema>;
+export type BillQueryInput = z.infer<typeof billQuerySchema>;

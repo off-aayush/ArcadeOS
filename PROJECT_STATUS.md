@@ -19,19 +19,19 @@
 - [x] Running Timers Overview (Dashboard Phase)
 - [x] Products & Categories (Inventory Phase)
 - [x] Stock Management (Inventory Phase)
+- [x] Invoice Generation (Billing Phase — BillingService, /api/bills, BillDetailDialog, BillTable, /billing page)
 
 ---
 
 ## In Progress
 
-- [ ] Invoice Generation
+- [ ] Payment Recording (Billing Phase)
 
 ---
 
 ## Pending
 
-- [ ] Billing
-- [ ] Inventory
+- [ ] Billing — Discounts & Adjustments
 - [ ] Reports
 - [ ] Authentication
 - [ ] Realtime
