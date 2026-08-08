@@ -141,7 +141,7 @@ export function FoodTable() {
                             )}>
                               {item.stock}
                             </span>
-                            {isLowStock && <AlertCircle className="h-4 w-4 text-warning" title="Low Stock" />}
+                            {isLowStock && <span title="Low Stock"><AlertCircle className="h-4 w-4 text-warning" /></span>}
                             {isOutOfStock && <span className="text-[10px] text-danger font-bold uppercase border border-danger/30 bg-danger/10 px-1.5 rounded-sm">Empty</span>}
                           </div>
                         </td>
