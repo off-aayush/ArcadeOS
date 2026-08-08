@@ -8,15 +8,16 @@ import { ApiResponse } from "@/types";
 import { formatCurrency, formatDuration, formatDateTime } from "@/lib/utils";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { PlayCircle, Gamepad2, Users, Search, RefreshCw, Clock } from "lucide-react";
+import { PlayCircle, Gamepad2, Users, RefreshCw, Clock, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BillDetailDialog } from "@/features/billing/components/bill-detail-dialog";
 
 type ListResult = { sessions: SessionListItem[]; total: number };
 
 function SessionRowSkeleton() {
   return (
     <tr className="border-b border-surface-border animate-pulse">
-      {[1, 2, 3, 4, 5, 6].map((i) => (
+      {[1, 2, 3, 4, 5, 6, 7].map((i) => (
         <td key={i} className="px-4 py-3">
           <div className="h-4 rounded bg-surface-border w-3/4" />
         </td>
@@ -28,6 +29,7 @@ function SessionRowSkeleton() {
 export function SessionTable() {
   const [status, setStatus] = useState<string>("ALL");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [billingSessionId, setBillingSessionId] = useState<string | null>(null);
 
   const params = new URLSearchParams({ status });
   
@@ -95,6 +97,7 @@ export function SessionTable() {
                   <th className="px-4 py-3 font-semibold text-surface-muted">Duration</th>
                   <th className="px-4 py-3 font-semibold text-surface-muted">Status</th>
                   <th className="px-4 py-3 font-semibold text-surface-muted text-right">Bill</th>
+                  <th className="px-4 py-3 font-semibold text-surface-muted text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -102,7 +105,7 @@ export function SessionTable() {
                   Array.from({ length: 8 }).map((_, i) => <SessionRowSkeleton key={i} />)
                 ) : sessions.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-16">
+                    <td colSpan={7} className="py-16">
                       <EmptyState
                         title="No Sessions Found"
                         description="No gaming sessions match your filters."
@@ -196,6 +199,18 @@ export function SessionTable() {
                             <span className="text-xs text-surface-muted">—</span>
                           )}
                         </td>
+                        {/* Actions */}
+                        <td className="px-4 py-3 text-right">
+                          {session.status === "COMPLETED" && !session.bill && (
+                            <button
+                              onClick={() => setBillingSessionId(session.id)}
+                              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold border border-brand/40 bg-brand/10 text-brand hover:bg-brand/20 transition-all"
+                            >
+                              <Receipt className="h-3.5 w-3.5" />
+                              Invoice
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     );
                   })
@@ -205,6 +220,13 @@ export function SessionTable() {
           </div>
         )}
       </div>
+
+      {/* Bill Generation Dialog */}
+      <BillDetailDialog
+        sessionId={billingSessionId ?? undefined}
+        isOpen={!!billingSessionId}
+        onClose={() => setBillingSessionId(null)}
+      />
     </div>
   );
 }
