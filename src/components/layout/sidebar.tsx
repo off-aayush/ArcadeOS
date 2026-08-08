@@ -12,6 +12,7 @@ import {
   BarChart3,
   Settings,
   Gamepad2,
+  Coffee,
 } from "lucide-react";
 
 const navItems = [
@@ -19,6 +20,7 @@ const navItems = [
   { label: "Stations", href: "/stations", icon: Monitor },
   { label: "Customers", href: "/customers", icon: Users },
   { label: "Sessions", href: "/sessions", icon: PlayCircle },
+  { label: "Inventory", href: "/inventory", icon: Coffee },
   { label: "Billing", href: "/billing", icon: Receipt },
   { label: "Reports", href: "/reports", icon: BarChart3 },
   { label: "Settings", href: "/settings", icon: Settings },

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "food_items" ADD COLUMN     "minStock" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "stock" INTEGER NOT NULL DEFAULT 0;
