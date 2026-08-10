@@ -27,3 +27,25 @@ export const recordPaymentSchema = z.object({
 });
 
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
+
+// ── Apply a discount to a bill ───────────────────────────────────────────────
+export const applyDiscountSchema = z.object({
+  discountId: z.string().optional(),
+  customAmount: z.coerce.number().positive("Custom amount must be greater than 0").optional(),
+  notes: z.string().optional(),
+}).refine(
+  (data) => data.discountId || data.customAmount,
+  { message: "Either discountId or customAmount must be provided" }
+);
+
+export type ApplyDiscountInput = z.infer<typeof applyDiscountSchema>;
+
+// ── Add a manual adjustment to a bill ────────────────────────────────────────
+export const addAdjustmentSchema = z.object({
+  type: z.enum(["MANUAL_CREDIT", "MANUAL_CHARGE"]),
+  amount: z.coerce.number().positive("Amount must be greater than 0"),
+  description: z.string().min(1, "Description is required"),
+  notes: z.string().optional(),
+});
+
+export type AddAdjustmentInput = z.infer<typeof addAdjustmentSchema>;

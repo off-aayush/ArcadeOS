@@ -26,13 +26,13 @@
 ## In Progress
 
 - [x] Payment Recording (Billing Phase)
+- [x] Billing — Discounts & Adjustments (Billing Phase)
+- [ ] Reports
 
 ---
 
 ## Pending
 
-- [ ] Billing — Discounts & Adjustments
-- [ ] Reports
 - [ ] Authentication
 - [ ] Realtime
 

@@ -32,6 +32,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PaymentDialog } from "./payment-dialog";
+import { ApplyDiscountDialog } from "./apply-discount-dialog";
+import { AddAdjustmentDialog } from "./add-adjustment-dialog";
+import { Tag, SlidersHorizontal } from "lucide-react";
 
 interface BillDetailDialogProps {
   /** Pass a sessionId to trigger "generate then show" flow */
@@ -72,6 +75,8 @@ export function BillDetailDialog({
   const [bill, setBill] = useState<BillWithDetails | null>(initialBill ?? null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
+  const [isAdjustmentDialogOpen, setIsAdjustmentDialogOpen] = useState(false);
 
   // Auto-generate when dialog opens with a sessionId and no bill yet
   const handleGenerate = async () => {
@@ -363,6 +368,26 @@ export function BillDetailDialog({
             Close
           </Button>
           <div className="flex gap-2">
+            {bill && (bill.status === "PENDING" || bill.status === "PARTIALLY_PAID") && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDiscountDialogOpen(true)}
+                  className="border-surface-border text-white hover:bg-surface hover:text-success gap-2"
+                >
+                  <Tag className="h-4 w-4" />
+                  Discount
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsAdjustmentDialogOpen(true)}
+                  className="border-surface-border text-white hover:bg-surface hover:text-warning gap-2 mr-2"
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Adjust
+                </Button>
+              </>
+            )}
             {bill && Number(bill.amountDue) > 0 && (
               <Button
                 onClick={() => setIsPaymentDialogOpen(true)}
@@ -392,7 +417,32 @@ export function BillDetailDialog({
           onClose={() => setIsPaymentDialogOpen(false)}
           onSuccess={(updatedBill) => {
             setBill(updatedBill);
-            // Optionally invalidate queries if needed
+            queryClient.invalidateQueries({ queryKey: ["bills"] });
+          }}
+        />
+      )}
+
+      {/* Discount Dialog */}
+      {bill && (
+        <ApplyDiscountDialog
+          bill={bill}
+          isOpen={isDiscountDialogOpen}
+          onClose={() => setIsDiscountDialogOpen(false)}
+          onSuccess={(updatedBill) => {
+            setBill(updatedBill);
+            queryClient.invalidateQueries({ queryKey: ["bills"] });
+          }}
+        />
+      )}
+
+      {/* Adjustment Dialog */}
+      {bill && (
+        <AddAdjustmentDialog
+          bill={bill}
+          isOpen={isAdjustmentDialogOpen}
+          onClose={() => setIsAdjustmentDialogOpen(false)}
+          onSuccess={(updatedBill) => {
+            setBill(updatedBill);
             queryClient.invalidateQueries({ queryKey: ["bills"] });
           }}
         />

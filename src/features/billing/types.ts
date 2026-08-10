@@ -36,3 +36,4 @@ export interface BillQueryParams {
 }
 
 export type { RecordPaymentInput } from "./validators";
+export type { ApplyDiscountInput, AddAdjustmentInput } from "./validators";
