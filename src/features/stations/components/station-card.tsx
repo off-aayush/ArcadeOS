@@ -6,7 +6,7 @@ import { StationListItem } from "../types";
 import { StationStatusBadge } from "./station-status-badge";
 import { STATION_TYPE_LABELS, API_ROUTES } from "@/lib/constants";
 import { formatCurrency, formatTimer } from "@/lib/utils";
-import { Monitor, Laptop, Gamepad, Trophy, HelpCircle, Users, Edit2, Pause, Play, Square } from "lucide-react";
+import { Monitor, Laptop, Gamepad, Trophy, HelpCircle, Users, Edit2, Pause, Play, Square, Glasses, GlassesIcon, LucideGlasses, HeadsetIcon, LucideRulerDimensionLine, BoxIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StartSessionDialog } from "@/features/sessions/components/start-session-dialog";
 import { toast } from "@/components/ui/toast";
@@ -20,9 +20,9 @@ interface StationCardProps {
 const TYPE_ICONS = {
   PS5: Gamepad,
   PS4: Gamepad,
-  PC: Laptop,
+  PC: Monitor,
   RACING_SIMULATOR: Trophy,
-  VR: Monitor,
+  VR: BoxIcon,
   XBOX: Gamepad,
   SWITCH: Gamepad,
   OTHER: HelpCircle,
@@ -36,29 +36,36 @@ export function StationCard({ station, onEdit }: StationCardProps) {
   const [isActing, setIsActing] = useState(false);
   const [billingSessionId, setBillingSessionId] = useState<string | null>(null);
 
+  const startTime = activeSession?.startTime;
+  const totalPausedMs = activeSession?.totalPausedMs || 0;
+  const pausedAt = activeSession?.pausedAt;
+
   useEffect(() => {
-    if (!activeSession) {
+    if (!startTime) {
       setElapsedMs(0);
       return;
     }
 
-    const calculateElapsed = () => {
-      const start = new Date(activeSession.startTime).getTime();
-      const now = Date.now();
-      const pausedTime = activeSession.totalPausedMs || 0;
+    const start = new Date(startTime).getTime();
+    const pausedAtTime = pausedAt ? new Date(pausedAt).getTime() : null;
 
-      if (activeSession.pausedAt) {
-        const pausedAtTime = new Date(activeSession.pausedAt).getTime();
-        setElapsedMs(Math.max(0, pausedAtTime - start - pausedTime));
+    const calculateElapsed = () => {
+      const now = Date.now();
+
+      if (pausedAtTime) {
+        setElapsedMs(Math.max(0, pausedAtTime - start - totalPausedMs));
       } else {
-        setElapsedMs(Math.max(0, now - start - pausedTime));
+        setElapsedMs(Math.max(0, now - start - totalPausedMs));
       }
     };
 
     calculateElapsed();
-    const interval = setInterval(calculateElapsed, 1000);
-    return () => clearInterval(interval);
-  }, [activeSession]);
+    // Only run the interval if the session is not paused
+    if (!pausedAtTime) {
+      const interval = setInterval(calculateElapsed, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [startTime, totalPausedMs, pausedAt]);
 
   const IconComponent = TYPE_ICONS[station.type as keyof typeof TYPE_ICONS] || HelpCircle;
 
@@ -66,8 +73,8 @@ export function StationCard({ station, onEdit }: StationCardProps) {
     station.status === "AVAILABLE"
       ? "shadow-glow-success border-success/30 hover:border-success/50"
       : station.status === "OCCUPIED"
-      ? "shadow-glow-danger border-danger/30 hover:border-danger/50"
-      : "border-surface-border hover:border-surface-muted";
+        ? "shadow-glow-danger border-danger/30 hover:border-danger/50"
+        : "border-surface-border hover:border-surface-muted";
 
   // Action: Pause / Resume / Stop
   const handleSessionAction = async (action: "pause" | "resume" | "stop") => {
@@ -85,7 +92,7 @@ export function StationCard({ station, onEdit }: StationCardProps) {
       const labels = { pause: "Paused", resume: "Resumed", stop: "Stopped" };
       toast.add({ title: `Session ${labels[action]}`, description: `${station.name} session ${action}d.`, type: "success" });
       queryClient.invalidateQueries({ queryKey: ["stations"] });
-      
+
       if (action === "stop") {
         setBillingSessionId(activeSession.id);
       }
