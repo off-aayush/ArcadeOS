@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { StationGrid } from "@/features/stations/components/station-grid";
+import { StationTable } from "@/features/stations/components/station-table";
 import { StationCreateDialog } from "@/features/stations/components/station-create-dialog";
 import { StationEditDialog } from "@/features/stations/components/station-edit-dialog";
 import { StationListItem } from "@/features/stations/types";
@@ -34,7 +34,7 @@ export default function StationsPage() {
         </div>
       </div>
 
-      <StationGrid onEdit={(station) => setEditingStation(station)} />
+      <StationTable onEdit={(station) => setEditingStation(station)} />
 
       {editingStation && (
         <StationEditDialog
