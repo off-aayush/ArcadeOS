@@ -31,6 +31,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PaymentDialog } from "./payment-dialog";
 
 interface BillDetailDialogProps {
   /** Pass a sessionId to trigger "generate then show" flow */
@@ -70,6 +71,7 @@ export function BillDetailDialog({
   const queryClient = useQueryClient();
   const [bill, setBill] = useState<BillWithDetails | null>(initialBill ?? null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
 
   // Auto-generate when dialog opens with a sessionId and no bill yet
   const handleGenerate = async () => {
@@ -360,17 +362,41 @@ export function BillDetailDialog({
           >
             Close
           </Button>
-          {bill && (
-            <Button
-              onClick={handlePrint}
-              className="bg-brand hover:bg-brand/80 text-white font-semibold gap-2"
-            >
-              <Printer className="h-4 w-4" />
-              Print Invoice
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {bill && Number(bill.amountDue) > 0 && (
+              <Button
+                onClick={() => setIsPaymentDialogOpen(true)}
+                className="bg-accent hover:bg-accent/80 text-white font-semibold"
+              >
+                Record Payment
+              </Button>
+            )}
+            {bill && (
+              <Button
+                onClick={handlePrint}
+                className="bg-brand hover:bg-brand/80 text-white font-semibold gap-2"
+              >
+                <Printer className="h-4 w-4" />
+                Print Invoice
+              </Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
+
+      {/* Payment Dialog */}
+      {bill && (
+        <PaymentDialog
+          bill={bill}
+          isOpen={isPaymentDialogOpen}
+          onClose={() => setIsPaymentDialogOpen(false)}
+          onSuccess={(updatedBill) => {
+            setBill(updatedBill);
+            // Optionally invalidate queries if needed
+            queryClient.invalidateQueries({ queryKey: ["bills"] });
+          }}
+        />
+      )}
     </Dialog>
   );
 }

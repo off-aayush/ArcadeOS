@@ -17,3 +17,13 @@ export const billQuerySchema = z.object({
 
 export type GenerateBillInput = z.infer<typeof generateBillSchema>;
 export type BillQueryInput = z.infer<typeof billQuerySchema>;
+
+// ── Record a payment against a bill ──────────────────────────────────────────
+export const recordPaymentSchema = z.object({
+  amount: z.coerce.number().positive("Amount must be greater than 0"),
+  method: z.enum(["CASH", "UPI", "CARD", "WALLET", "COMPLIMENTARY"]),
+  reference: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;

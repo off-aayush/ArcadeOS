@@ -25,7 +25,7 @@
 
 ## In Progress
 
-- [ ] Payment Recording (Billing Phase)
+- [x] Payment Recording (Billing Phase)
 
 ---
 

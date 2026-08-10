@@ -34,3 +34,5 @@ export interface BillQueryParams {
   page?: number;
   pageSize?: number;
 }
+
+export type { RecordPaymentInput } from "./validators";

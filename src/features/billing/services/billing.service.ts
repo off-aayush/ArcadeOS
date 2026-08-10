@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { BillWithDetails, BillListItem, BillQueryParams } from "../types";
+import { BillWithDetails, BillListItem, BillQueryParams, RecordPaymentInput } from "../types";
 import { Prisma, BillStatus } from "@prisma/client";
 import {
   calculateSessionAmount,
@@ -189,5 +189,72 @@ export class BillingService {
       include: BILL_DETAIL_INCLUDE,
     });
     return bill as BillWithDetails | null;
+  }
+  /**
+   * Record a payment against an existing bill.
+   * Runs in a transaction to safely update bill totals and status.
+   */
+  static async recordPayment(billId: string, input: RecordPaymentInput): Promise<BillWithDetails> {
+    const actorId = await getSystemUserId(); // Simplified for now (ideally from auth session)
+
+    const result = await prisma.$transaction(async (tx) => {
+      const bill = await tx.bill.findUnique({ where: { id: billId } });
+      
+      if (!bill) {
+        throw new Error("Bill not found");
+      }
+      
+      if (Number(bill.amountDue) <= 0) {
+        throw new Error("Bill is already fully paid");
+      }
+
+      if (input.amount > Number(bill.amountDue)) {
+        throw new Error(`Payment amount (${input.amount}) exceeds amount due (${bill.amountDue})`);
+      }
+
+      // 1. Create the Payment record
+      await tx.payment.create({
+        data: {
+          billId,
+          amount: input.amount,
+          method: input.method,
+          reference: input.reference,
+          notes: input.notes,
+          receivedById: actorId,
+          status: "COMPLETED",
+        },
+      });
+
+      // 2. Calculate new totals
+      const newAmountPaid = Number(bill.amountPaid) + input.amount;
+      const newAmountDue = Number(bill.grandTotal) - newAmountPaid;
+      
+      // Determine new status
+      let newStatus: BillStatus = bill.status;
+      let paidAt = bill.paidAt;
+
+      if (newAmountDue <= 0) {
+        newStatus = "PAID";
+        paidAt = new Date();
+      } else {
+        newStatus = "PARTIALLY_PAID";
+      }
+
+      // 3. Update the Bill
+      const updatedBill = await tx.bill.update({
+        where: { id: billId },
+        data: {
+          amountPaid: newAmountPaid,
+          amountDue: newAmountDue,
+          status: newStatus,
+          paidAt,
+        },
+        include: BILL_DETAIL_INCLUDE,
+      });
+
+      return updatedBill;
+    });
+
+    return result as BillWithDetails;
   }
 }
