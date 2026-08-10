@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { BillWithDetails } from "../types";
 import {
@@ -108,14 +108,22 @@ export function BillDetailDialog({
   };
 
   // Trigger generation as soon as the dialog opens (if needed)
+  useEffect(() => {
+    if (isOpen) {
+      if (initialBill) {
+        setBill(initialBill);
+      } else if (sessionId && !bill && !isGenerating) {
+        handleGenerate();
+      }
+    } else {
+      // Reset state when closed
+      setBill(null);
+    }
+  }, [isOpen, initialBill, sessionId]);
+
   const handleOpenChange = (open: boolean) => {
     if (!open) {
-      setBill(initialBill ?? null);
       onClose();
-      return;
-    }
-    if (open && !bill && sessionId) {
-      handleGenerate();
     }
   };
 
