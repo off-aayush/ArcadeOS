@@ -79,9 +79,9 @@ export function ReportsDashboard() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col flex-1 gap-6 min-h-0">
       {/* Overview Stats Cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 shrink-0">
         {statItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -107,11 +107,11 @@ export function ReportsDashboard() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 flex-1 min-h-0">
         {/* Revenue Trend Chart */}
-        <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6 lg:col-span-2">
-          <h3 className="mb-6 text-lg font-bold text-white tracking-tight">Revenue Trend</h3>
-          <div className="h-80 w-full flex-1">
+        <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6 lg:col-span-2 min-h-0">
+          <h3 className="mb-6 text-lg font-bold text-white tracking-tight shrink-0">Revenue Trend</h3>
+          <div className="w-full flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={revenueChart} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
@@ -152,11 +152,11 @@ export function ReportsDashboard() {
         </div>
 
         {/* Station Usage Chart */}
-        <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6">
-          <h3 className="mb-6 text-lg font-bold text-white tracking-tight">Station Usage</h3>
-          <div className="h-80 w-full flex-1">
+        <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6 min-h-0">
+          <h3 className="mb-6 text-lg font-bold text-white tracking-tight shrink-0">Station Usage</h3>
+          <div className="w-full flex-1 min-h-0">
             {stationUsage.some(entry => entry.sessions > 0) ? (
-              <ResponsiveContainer width="100%" height="100%" minHeight={320}>
+              <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={stationUsage
@@ -167,9 +167,11 @@ export function ReportsDashboard() {
                       }))}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
+                    innerRadius={0}
                     outerRadius={80}
-                    paddingAngle={5}
+                    paddingAngle={1}
+                    stroke={"#0f1115"}
+                    cornerRadius={5}
                     dataKey="sessions"
                     nameKey="type"
                     isAnimationActive={false}
@@ -192,7 +194,7 @@ export function ReportsDashboard() {
             )}
           </div>
           {/* Custom Legend */}
-          <div className="mt-4 flex flex-wrap justify-center gap-3">
+          <div className="mt-4 flex flex-wrap justify-center gap-3 shrink-0">
             {stationUsage.map((entry, index) => (
               <div key={entry.type} className="flex items-center gap-1.5 text-xs text-surface-muted">
                 <span
