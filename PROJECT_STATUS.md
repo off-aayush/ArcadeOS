@@ -27,7 +27,7 @@
 
 - [x] Payment Recording (Billing Phase)
 - [x] Billing — Discounts & Adjustments (Billing Phase)
-- [ ] Reports
+- [x] Reports (Billing Phase)
 
 ---
 
