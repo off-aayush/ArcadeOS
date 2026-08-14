@@ -86,12 +86,20 @@ export class ReportService {
 
     // ── Prepare Station Usage Data ────────────────────────────────────────────
     const usageMap = new Map<string, number>();
+    
+    // Initialize all known station types with 0
+    Object.values(STATION_TYPE_LABELS).forEach(label => {
+      usageMap.set(label, 0);
+    });
+
     sessions.forEach(s => {
       const label = STATION_TYPE_LABELS[s.station.type] || s.station.type;
       usageMap.set(label, (usageMap.get(label) || 0) + 1);
     });
 
-    const stationUsage = Array.from(usageMap.entries()).map(([type, count]) => ({
+    const stationUsage = Array.from(usageMap.entries())
+      .filter(([type, count]) => count > 0 || usageMap.size > 0) // Always show items, or at least we have data
+      .map(([type, count]) => ({
       type,
       sessions: count
     })).sort((a, b) => b.sessions - a.sessions); // Largest segments first

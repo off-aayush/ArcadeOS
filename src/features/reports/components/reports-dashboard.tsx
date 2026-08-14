@@ -14,7 +14,6 @@ import {
   ResponsiveContainer,
   PieChart,
   Pie,
-  Cell,
 } from "recharts";
 import { format, subDays } from "date-fns";
 
@@ -116,11 +115,11 @@ export function ReportsDashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={revenueChart} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                <XAxis 
-                  dataKey="date" 
-                  stroke="#ffffff60" 
-                  fontSize={12} 
-                  tickLine={false} 
+                <XAxis
+                  dataKey="date"
+                  stroke="#ffffff60"
+                  fontSize={12}
+                  tickLine={false}
                   axisLine={false}
                 />
                 <YAxis
@@ -141,9 +140,9 @@ export function ReportsDashboard() {
                   itemStyle={{ color: "#fff" }}
                   formatter={(value: any) => [formatCurrency(Number(value)), "Revenue"]}
                 />
-                <Bar 
-                  dataKey="revenue" 
-                  fill="#8b5cf6" 
+                <Bar
+                  dataKey="revenue"
+                  fill="#8b5cf6"
                   radius={[4, 4, 0, 0]}
                   maxBarSize={50}
                 />
@@ -156,11 +155,16 @@ export function ReportsDashboard() {
         <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6">
           <h3 className="mb-6 text-lg font-bold text-white tracking-tight">Station Usage</h3>
           <div className="h-80 w-full flex-1">
-            {stationUsage.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+            {stationUsage.some(entry => entry.sessions > 0) ? (
+              <ResponsiveContainer width="100%" height="100%" minHeight={320}>
                 <PieChart>
                   <Pie
-                    data={stationUsage}
+                    data={stationUsage
+                      .filter(entry => entry.sessions > 0)
+                      .map((entry, index) => ({
+                        ...entry,
+                        fill: PIE_COLORS[index % PIE_COLORS.length]
+                      }))}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
@@ -168,11 +172,8 @@ export function ReportsDashboard() {
                     paddingAngle={5}
                     dataKey="sessions"
                     nameKey="type"
-                  >
-                    {stationUsage.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
+                    isAnimationActive={false}
+                  />
                   <RechartsTooltip
                     contentStyle={{
                       backgroundColor: "#0f1115",

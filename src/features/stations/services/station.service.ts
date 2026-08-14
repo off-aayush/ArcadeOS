@@ -165,25 +165,51 @@ export class StationService {
    * Retrieves dashboard stats (station occupancy, total counts, revenue placeholders)
    */
   static async getStats(): Promise<DashboardStats> {
-    const [total, available, occupied, maintenance, activeSessions] = await Promise.all([
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [total, available, occupied, maintenance, activeSessions, bills, todaySessions] = await Promise.all([
       prisma.station.count({ where: { isActive: true, deletedAt: null } }),
       prisma.station.count({ where: { isActive: true, deletedAt: null, status: "AVAILABLE" } }),
       prisma.station.count({ where: { isActive: true, deletedAt: null, status: "OCCUPIED" } }),
       prisma.station.count({ where: { isActive: true, deletedAt: null, status: "MAINTENANCE" } }),
       prisma.session.count({ where: { status: "ACTIVE" } }),
+      prisma.bill.findMany({ 
+        where: { 
+          createdAt: { gte: today }, 
+          status: { in: ["PAID", "PARTIALLY_PAID"] } 
+        } 
+      }),
+      prisma.session.findMany({
+        where: {
+          startTime: { gte: today }
+        },
+        select: { customerId: true, totalPausedMs: true, startTime: true, endTime: true, status: true }
+      })
     ]);
 
-    // Revenue calculations will be computed dynamically in the billing phase.
-    // For now, return default stats with real counts.
+    const todayRevenue = bills.reduce((sum, b) => sum + Number(b.grandTotal), 0);
+    const todayCustomers = new Set(todaySessions.filter(s => s.customerId).map(s => s.customerId)).size;
+
+    let totalDurationMs = 0;
+    let completedCount = 0;
+    todaySessions.forEach(s => {
+      if (s.status === "COMPLETED" && s.endTime) {
+        totalDurationMs += s.endTime.getTime() - s.startTime.getTime() - s.totalPausedMs;
+        completedCount++;
+      }
+    });
+    const avgSessionDurationMs = completedCount > 0 ? totalDurationMs / completedCount : 0;
+
     return {
       totalStations: total,
       availableStations: available,
       occupiedStations: occupied,
       maintenanceStations: maintenance,
       activeSessions,
-      todayRevenue: 0,
-      todayCustomers: 0,
-      avgSessionDurationMs: 0,
+      todayRevenue,
+      todayCustomers,
+      avgSessionDurationMs,
     };
   }
 }
