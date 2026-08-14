@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { BillWithDetails, BillListItem, BillQueryParams } from "../types";
+import { BillWithDetails, BillListItem, BillQueryParams, RecordPaymentInput, ApplyDiscountInput, AddAdjustmentInput } from "../types";
 import { Prisma, BillStatus } from "@prisma/client";
 import {
   calculateSessionAmount,
@@ -189,5 +189,261 @@ export class BillingService {
       include: BILL_DETAIL_INCLUDE,
     });
     return bill as BillWithDetails | null;
+  }
+  /**
+   * Record a payment against an existing bill.
+   * Runs in a transaction to safely update bill totals and status.
+   */
+  static async recordPayment(billId: string, input: RecordPaymentInput): Promise<BillWithDetails> {
+    const actorId = await getSystemUserId(); // Simplified for now (ideally from auth session)
+
+    const result = await prisma.$transaction(async (tx) => {
+      const bill = await tx.bill.findUnique({ where: { id: billId } });
+      
+      if (!bill) {
+        throw new Error("Bill not found");
+      }
+      
+      if (Number(bill.amountDue) <= 0) {
+        throw new Error("Bill is already fully paid");
+      }
+
+      if (input.amount > Number(bill.amountDue)) {
+        throw new Error(`Payment amount (${input.amount}) exceeds amount due (${bill.amountDue})`);
+      }
+
+      // 1. Create the Payment record
+      await tx.payment.create({
+        data: {
+          billId,
+          amount: input.amount,
+          method: input.method,
+          reference: input.reference,
+          notes: input.notes,
+          receivedById: actorId,
+          status: "COMPLETED",
+        },
+      });
+
+      // 2. Calculate new totals
+      const newAmountPaid = Number(bill.amountPaid) + input.amount;
+      const newAmountDue = Number(bill.grandTotal) - newAmountPaid;
+      
+      // Determine new status
+      let newStatus: BillStatus = bill.status;
+      let paidAt = bill.paidAt;
+
+      if (newAmountDue <= 0) {
+        newStatus = "PAID";
+        paidAt = new Date();
+      } else {
+        newStatus = "PARTIALLY_PAID";
+      }
+
+      // 3. Update the Bill
+      const updatedBill = await tx.bill.update({
+        where: { id: billId },
+        data: {
+          amountPaid: newAmountPaid,
+          amountDue: newAmountDue,
+          status: newStatus,
+          paidAt,
+        },
+        include: BILL_DETAIL_INCLUDE,
+      });
+
+      return updatedBill;
+    });
+
+    return result as BillWithDetails;
+  }
+
+  // ── Shared: recalculate bill totals from line items ─────────────────────────
+  private static async recalculateBillTotals(
+    tx: Prisma.TransactionClient,
+    billId: string
+  ): Promise<void> {
+    const items = await tx.billItem.findMany({ where: { billId } });
+
+    let subtotal = 0;
+    let discountTotal = 0;
+    let adjustmentTotal = 0;
+    let roundingAmount = 0;
+
+    for (const item of items) {
+      const total = Number(item.totalPrice);
+      switch (item.type) {
+        case "SESSION_TIME":
+        case "FOOD":
+        case "DRINK":
+          subtotal += total;
+          break;
+        case "DISCOUNT":
+          discountTotal += Math.abs(total); // stored as negative
+          break;
+        case "MANUAL_CREDIT":
+          adjustmentTotal -= Math.abs(total);
+          break;
+        case "MANUAL_CHARGE":
+          adjustmentTotal += total;
+          break;
+        case "ROUNDING":
+          roundingAmount += total;
+          break;
+      }
+    }
+
+    // Remove old rounding items to recalculate
+    await tx.billItem.deleteMany({ where: { billId, type: "ROUNDING" } });
+
+    // Recompute grand total before rounding
+    const preRoundTotal = subtotal - discountTotal + adjustmentTotal;
+    const grandTotal = roundBill(preRoundTotal);
+    const newRounding = getRoundingDiff(preRoundTotal);
+
+    // Insert new rounding item if non-zero
+    if (newRounding !== 0) {
+      await tx.billItem.create({
+        data: {
+          billId,
+          type: "ROUNDING",
+          description: "Rounding adjustment",
+          quantity: 1,
+          unitPrice: newRounding,
+          totalPrice: newRounding,
+        },
+      });
+    }
+
+    // Fetch current bill for amountPaid
+    const currentBill = await tx.bill.findUniqueOrThrow({ where: { id: billId } });
+    const amountPaid = Number(currentBill.amountPaid);
+    const amountDue = grandTotal - amountPaid;
+
+    await tx.bill.update({
+      where: { id: billId },
+      data: {
+        subtotal,
+        discountTotal,
+        adjustmentTotal,
+        roundingAmount: newRounding,
+        grandTotal,
+        amountDue: Math.max(0, amountDue),
+      },
+    });
+  }
+
+  /**
+   * Apply a named discount template or a custom fixed amount to a bill.
+   */
+  static async applyDiscount(billId: string, input: ApplyDiscountInput): Promise<BillWithDetails> {
+    const result = await prisma.$transaction(async (tx) => {
+      const bill = await tx.bill.findUnique({ where: { id: billId } });
+      if (!bill) throw new Error("Bill not found");
+      if (bill.status === "PAID" || bill.status === "VOIDED") {
+        throw new Error("Cannot modify a PAID or VOIDED bill");
+      }
+
+      let discountAmount: number;
+      let description: string;
+      let discountId: string | null = null;
+
+      if (input.discountId) {
+        // Named discount template
+        const discount = await tx.discount.findUnique({ where: { id: input.discountId } });
+        if (!discount || !discount.isActive) {
+          throw new Error("Discount template not found or inactive");
+        }
+
+        const subtotal = Number(bill.subtotal);
+
+        // Validate minimum bill amount
+        if (discount.minBillAmount && subtotal < Number(discount.minBillAmount)) {
+          throw new Error(`Bill subtotal (₹${subtotal}) is below the minimum of ₹${discount.minBillAmount}`);
+        }
+
+        if (discount.type === "PERCENTAGE") {
+          discountAmount = subtotal * Number(discount.value) / 100;
+          // Cap at maxAmount if defined
+          if (discount.maxAmount && discountAmount > Number(discount.maxAmount)) {
+            discountAmount = Number(discount.maxAmount);
+          }
+          description = `${discount.name} (${discount.value}%)`;
+        } else {
+          // FIXED_AMOUNT
+          discountAmount = Number(discount.value);
+          description = `${discount.name} (flat)`;
+        }
+
+        discountId = discount.id;
+      } else if (input.customAmount) {
+        discountAmount = input.customAmount;
+        description = `Custom discount`;
+      } else {
+        throw new Error("Either discountId or customAmount must be provided");
+      }
+
+      // Round to 2dp
+      discountAmount = Math.round(discountAmount * 100) / 100;
+
+      // Create the discount line item (negative totalPrice)
+      await tx.billItem.create({
+        data: {
+          billId,
+          type: "DISCOUNT",
+          description: input.notes ? `${description} — ${input.notes}` : description,
+          quantity: 1,
+          unitPrice: -discountAmount,
+          totalPrice: -discountAmount,
+          discountId,
+        },
+      });
+
+      // Recalculate all bill totals
+      await BillingService.recalculateBillTotals(tx, billId);
+
+      return tx.bill.findUniqueOrThrow({
+        where: { id: billId },
+        include: BILL_DETAIL_INCLUDE,
+      });
+    });
+
+    return result as BillWithDetails;
+  }
+
+  /**
+   * Add a manual credit or charge adjustment to a bill.
+   */
+  static async addAdjustment(billId: string, input: AddAdjustmentInput): Promise<BillWithDetails> {
+    const result = await prisma.$transaction(async (tx) => {
+      const bill = await tx.bill.findUnique({ where: { id: billId } });
+      if (!bill) throw new Error("Bill not found");
+      if (bill.status === "PAID" || bill.status === "VOIDED") {
+        throw new Error("Cannot modify a PAID or VOIDED bill");
+      }
+
+      const isCredit = input.type === "MANUAL_CREDIT";
+      const amount = Math.round(input.amount * 100) / 100;
+
+      await tx.billItem.create({
+        data: {
+          billId,
+          type: input.type,
+          description: input.notes ? `${input.description} — ${input.notes}` : input.description,
+          quantity: 1,
+          unitPrice: isCredit ? -amount : amount,
+          totalPrice: isCredit ? -amount : amount,
+        },
+      });
+
+      await BillingService.recalculateBillTotals(tx, billId);
+
+      return tx.bill.findUniqueOrThrow({
+        where: { id: billId },
+        include: BILL_DETAIL_INCLUDE,
+      });
+    });
+
+    return result as BillWithDetails;
   }
 }
