@@ -23,6 +23,8 @@ async function getSystemUserId(): Promise<string> {
   return user.id;
 }
 
+import { emitSocketEvent } from "@/lib/socket-emitter";
+
 // --- Session include shape (reused across all queries) ---
 const SESSION_INCLUDE = {
   station: { select: { id: true, name: true, type: true } },
@@ -121,6 +123,9 @@ export class SessionService {
       }),
     ]);
 
+    emitSocketEvent("invalidate_sessions");
+    emitSocketEvent("invalidate_stations");
+
     return session as SessionWithContext;
   }
 
@@ -137,6 +142,9 @@ export class SessionService {
       data: { status: "PAUSED", pausedAt: new Date() },
       include: SESSION_INCLUDE,
     });
+
+    emitSocketEvent("invalidate_sessions");
+
     return updated as SessionWithContext;
   }
 
@@ -160,6 +168,9 @@ export class SessionService {
       },
       include: SESSION_INCLUDE,
     });
+
+    emitSocketEvent("invalidate_sessions");
+
     return updated as SessionWithContext;
   }
 
@@ -207,6 +218,9 @@ export class SessionService {
       }),
     ]);
 
+    emitSocketEvent("invalidate_sessions");
+    emitSocketEvent("invalidate_stations");
+
     return updated as SessionWithContext;
   }
 
@@ -231,6 +245,9 @@ export class SessionService {
         include: SESSION_INCLUDE,
       }),
     ]);
+
+    emitSocketEvent("invalidate_sessions");
+    emitSocketEvent("invalidate_stations");
 
     return updated as SessionWithContext;
   }

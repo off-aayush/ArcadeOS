@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { StationQueryParams, StationListItem } from "../types";
 import { DashboardStats } from "@/types";
 import { Prisma, Station } from "@prisma/client";
+import { emitSocketEvent } from "@/lib/socket-emitter";
 
 export class StationService {
   /**
@@ -90,12 +91,14 @@ export class StationService {
    * Creates a new station in the database.
    */
   static async create(data: Omit<Prisma.StationCreateInput, "status">): Promise<Station> {
-    return prisma.station.create({
+    const station = await prisma.station.create({
       data: {
         ...data,
         status: "AVAILABLE",
       },
     });
+    emitSocketEvent("invalidate_stations");
+    return station;
   }
 
   /**
@@ -125,10 +128,12 @@ export class StationService {
       }
     }
 
-    return prisma.station.update({
+    const updated = await prisma.station.update({
       where: { id },
       data,
     });
+    emitSocketEvent("invalidate_stations");
+    return updated;
   }
 
   /**
@@ -152,13 +157,15 @@ export class StationService {
       throw new Error("Cannot delete a station with an active session");
     }
 
-    return prisma.station.update({
+    const deleted = await prisma.station.update({
       where: { id },
       data: {
         isActive: false,
         deletedAt: new Date(),
       },
     });
+    emitSocketEvent("invalidate_stations");
+    return deleted;
   }
 
   /**
