@@ -1,5 +1,5 @@
 ## Current Phase
-🟡 Phase 7 - Billing
+🟢 Phase 8 - Authentication
 
 ---
 
@@ -19,22 +19,21 @@
 - [x] Running Timers Overview (Dashboard Phase)
 - [x] Products & Categories (Inventory Phase)
 - [x] Stock Management (Inventory Phase)
-- [x] Invoice Generation (Billing Phase — BillingService, /api/bills, BillDetailDialog, BillTable, /billing page)
+- [x] Invoice Generation (Billing Phase)
+- [x] Payment Recording (Billing Phase)
+- [x] Billing — Discounts & Adjustments (Billing Phase)
+- [x] Reports (Billing Phase)
+- [x] Authentication (JWT, login page, middleware, topbar logout)
 
 ---
 
 ## In Progress
 
-- [x] Payment Recording (Billing Phase)
-- [x] Billing — Discounts & Adjustments (Billing Phase)
-- [x] Reports (Billing Phase)
+- [ ] Realtime (WebSockets)
 
 ---
 
 ## Pending
-
-- [ ] Authentication
-- [ ] Realtime
 
 ---
 

@@ -5,11 +5,21 @@ import { DEFAULT_PAGE_SIZE, MIN_BILLABLE_MS } from "@/lib/constants";
 
 // System user ID used when no auth is present yet (Phase 4 placeholder — replaced in Phase 9)
 const SYSTEM_USER_ID_KEY = "system_user_id";
+import { getAuthUser } from "@/lib/auth";
 
+/**
+ * Helper to get the current user ID for auditing/recording actions.
+ * Falls back to the first user if not in a request context.
+ */
 async function getSystemUserId(): Promise<string> {
-  // Fetch the first admin user as the acting receptionist (pre-auth placeholder)
-  const user = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
-  if (!user) throw new Error("No system user found. Please run the seed.");
+  try {
+    const authUser = await getAuthUser();
+    if (authUser) return authUser.id;
+  } catch {
+    // Ignore context errors
+  }
+  const user = await prisma.user.findFirst();
+  if (!user) throw new Error("No users exist in the system");
   return user.id;
 }
 

@@ -37,7 +37,15 @@ const BILL_LIST_INCLUDE = {
   },
 } satisfies Prisma.BillInclude;
 
+import { getAuthUser } from "@/lib/auth";
+
 async function getSystemUserId(): Promise<string> {
+  try {
+    const authUser = await getAuthUser();
+    if (authUser) return authUser.id;
+  } catch {
+    // Ignore context errors
+  }
   const user = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
   if (!user) throw new Error("No system user found. Please run the seed.");
   return user.id;

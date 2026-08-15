@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { QueryProvider } from "@/providers/query-provider";
+import { AuthProvider } from "@/providers/auth-provider";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -15,7 +16,9 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   return (
     <QueryProvider>
-      {children}
+      <AuthProvider>
+        {children}
+      </AuthProvider>
     </QueryProvider>
   );
 }
