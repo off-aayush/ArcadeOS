@@ -9,6 +9,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { PrismaClient, StationType, StationStatus, PricingModel, FoodCategory, DiscountType, UserRole } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -16,32 +17,33 @@ async function main() {
   console.log("🌱 Seeding ArcadeOS database...");
 
   // ── Admin User ─────────────────────────────────────────────────────────────
+  const adminPasswordHash = await bcrypt.hash("admin1234", 12);
   const admin = await prisma.user.upsert({
     where: { email: "admin@arcadeos.local" },
-    update: {},
+    update: { passwordHash: adminPasswordHash },
     create: {
       email: "admin@arcadeos.local",
-      // NOTE: In production, use bcrypt. This is a placeholder hash for seeding only.
-      passwordHash: "$2b$12$placeholder_hash_change_before_production",
+      passwordHash: adminPasswordHash,
       name: "Admin User",
       role: UserRole.ADMIN,
       isActive: true,
     },
   });
-  console.log(`  ✓ Admin user: ${admin.email}`);
+  console.log(`  ✓ Admin user: ${admin.email} (password: admin1234)`);
 
+  const receptionPasswordHash = await bcrypt.hash("reception123", 12);
   const receptionist = await prisma.user.upsert({
     where: { email: "reception@arcadeos.local" },
-    update: {},
+    update: { passwordHash: receptionPasswordHash },
     create: {
       email: "reception@arcadeos.local",
-      passwordHash: "$2b$12$placeholder_hash_change_before_production",
+      passwordHash: receptionPasswordHash,
       name: "Front Desk",
       role: UserRole.RECEPTIONIST,
       isActive: true,
     },
   });
-  console.log(`  ✓ Receptionist: ${receptionist.email}`);
+  console.log(`  ✓ Receptionist: ${receptionist.email} (password: reception123)`);
 
   // ── Stations ───────────────────────────────────────────────────────────────
   const stationData = [
