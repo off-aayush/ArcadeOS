@@ -1,5 +1,5 @@
 ## Current Phase
-🟢 Phase 8 - Authentication
+🟢 Phase 9 - Realtime (Complete)
 
 ---
 
@@ -24,12 +24,11 @@
 - [x] Billing — Discounts & Adjustments (Billing Phase)
 - [x] Reports (Billing Phase)
 - [x] Authentication (JWT, login page, middleware, topbar logout)
+- [x] Realtime (WebSockets via Socket.IO, custom server, global emitters)
 
 ---
 
 ## In Progress
-
-- [ ] Realtime (WebSockets)
 
 ---
 
