@@ -140,17 +140,17 @@ export function BillDetailDialog({
   const session = bill?.session;
   const durationMs = session?.endTime
     ? Math.max(
-        new Date(session.endTime).getTime() -
-          new Date(session.startTime).getTime() -
-          (session.totalPausedMs ?? 0),
-        MIN_BILLABLE_MS
-      )
+      new Date(session.endTime).getTime() -
+      new Date(session.startTime).getTime() -
+      (session.totalPausedMs ?? 0),
+      MIN_BILLABLE_MS
+    )
     : 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[560px] bg-surface-card border-surface-border text-white max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[650px] bg-surface-card border-surface-border text-white p-0 gap-0 overflow-hidden">
+        <DialogHeader className="p-5 pb-4 border-b border-surface-border bg-surface/50">
           <DialogTitle className="flex items-center gap-2 text-xl font-bold tracking-tight">
             <Receipt className="h-5 w-5 text-brand" />
             Invoice
@@ -167,7 +167,7 @@ export function BillDetailDialog({
 
         {/* ── Bill content ──────────────────────────────────────────────── */}
         {!isGenerating && bill && (
-          <div className="space-y-5 py-2 print:py-0">
+          <div className="space-y-5 p-5 max-h-[70vh] overflow-y-auto">
             {/* Bill header */}
             <div className="flex items-start justify-between">
               <div>
@@ -182,7 +182,7 @@ export function BillDetailDialog({
             </div>
 
             {/* Session Context */}
-            <div className="rounded-xl border border-surface-border bg-surface p-4 space-y-3">
+            <div className="rounded-lg bg-surface p-4 border border-surface-border/50 space-y-3">
               <p className="text-xs font-semibold text-surface-muted uppercase tracking-wider">
                 Session Details
               </p>
@@ -245,15 +245,14 @@ export function BillDetailDialog({
               </div>
             </div>
 
-            {/* Line Items */}
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-surface-muted uppercase tracking-wider mb-2">
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-bold text-surface-muted uppercase tracking-wider mb-1.5">
                 Charges
               </p>
-              <div className="rounded-xl border border-surface-border overflow-hidden">
+              <div className="rounded-lg border border-surface-border/50 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-surface-border bg-surface">
+                    <tr className="border-b border-surface-border/50 bg-surface/50">
                       <th className="px-4 py-2.5 text-left text-xs font-semibold text-surface-muted">
                         Description
                       </th>
@@ -305,7 +304,7 @@ export function BillDetailDialog({
             </div>
 
             {/* Totals */}
-            <div className="rounded-xl border border-surface-border bg-surface p-4 space-y-2">
+            <div className="rounded-lg bg-surface p-4 border border-surface-border/50 space-y-1.5">
               <div className="flex justify-between text-sm text-surface-muted">
                 <span>Subtotal</span>
                 <span className="font-mono">{formatCurrency(Number(bill.subtotal))}</span>
@@ -359,7 +358,7 @@ export function BillDetailDialog({
           </div>
         )}
 
-        <DialogFooter className="border-t border-surface-border pt-4 gap-2 sm:justify-between">
+        <DialogFooter className=" m-1 p-4 border-t border-surface-border bg-surface/50 gap-2 sm:justify-between">
           <Button
             variant="outline"
             onClick={onClose}
