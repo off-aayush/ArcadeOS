@@ -36,7 +36,7 @@ export class StationService {
       include: {
         sessions: {
           where: {
-            status: "ACTIVE",
+            status: { in: ["ACTIVE", "PAUSED"] },
           },
           include: {
             customer: true,
@@ -70,7 +70,7 @@ export class StationService {
       include: {
         sessions: {
           where: {
-            status: "ACTIVE",
+            status: { in: ["ACTIVE", "PAUSED"] },
           },
           include: {
             customer: true,
@@ -109,7 +109,7 @@ export class StationService {
       where: { id },
       include: {
         sessions: {
-          where: { status: "ACTIVE" },
+          where: { status: { in: ["ACTIVE", "PAUSED"] } },
         },
       },
     });
@@ -144,7 +144,7 @@ export class StationService {
       where: { id },
       include: {
         sessions: {
-          where: { status: "ACTIVE" },
+          where: { status: { in: ["ACTIVE", "PAUSED"] } },
         },
       },
     });

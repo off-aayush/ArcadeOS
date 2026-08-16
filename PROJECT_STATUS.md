@@ -44,7 +44,8 @@
 
 ## Known Issues
 
-None
+- [x] Paused Session Cannot Be Resumed/Stopped - **Resolved**
+- [x] Bill Preview Modal UI choppy edges and scrolling - **Resolved**
 
 ---
 
