@@ -46,6 +46,13 @@ export class StationService {
                 name: true,
               },
             },
+            bill: {
+              select: {
+                id: true,
+                status: true,
+                grandTotal: true,
+              },
+            },
           },
         },
       },

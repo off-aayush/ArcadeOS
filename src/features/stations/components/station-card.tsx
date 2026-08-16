@@ -6,11 +6,12 @@ import { StationListItem } from "../types";
 import { StationStatusBadge } from "./station-status-badge";
 import { STATION_TYPE_LABELS, API_ROUTES } from "@/lib/constants";
 import { formatCurrency, formatTimer } from "@/lib/utils";
-import { Monitor, Laptop, Gamepad, Trophy, HelpCircle, Users, Edit2, Pause, Play, Square, Glasses, GlassesIcon, LucideGlasses, HeadsetIcon, LucideRulerDimensionLine, BoxIcon } from "lucide-react";
+import { Monitor, Laptop, Gamepad, Trophy, HelpCircle, Users, Edit2, Pause, Play, Square, Glasses, GlassesIcon, LucideGlasses, HeadsetIcon, LucideRulerDimensionLine, BoxIcon, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StartSessionDialog } from "@/features/sessions/components/start-session-dialog";
 import { toast } from "@/components/ui/toast";
 import { BillDetailDialog } from "@/features/billing/components/bill-detail-dialog";
+import { OrderDialog } from "@/features/sessions/components/order-dialog";
 
 interface StationCardProps {
   station: StationListItem;
@@ -35,6 +36,7 @@ export function StationCard({ station, onEdit }: StationCardProps) {
   const [isStartOpen, setIsStartOpen] = useState(false);
   const [isActing, setIsActing] = useState(false);
   const [billingSessionId, setBillingSessionId] = useState<string | null>(null);
+  const [isOrderOpen, setIsOrderOpen] = useState(false);
 
   const startTime = activeSession?.startTime;
   const totalPausedMs = activeSession?.totalPausedMs || 0;
@@ -157,6 +159,16 @@ export function StationCard({ station, onEdit }: StationCardProps) {
                   PAUSED
                 </span>
               )}
+              {/* Food order total if items exist */}
+              {activeSession?.bill && (activeSession.bill as any).status === "DRAFT" && (
+                <button
+                  onClick={() => setIsOrderOpen(true)}
+                  className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand bg-brand/10 border border-brand/30 rounded-full px-2 py-0.5 hover:bg-brand/20 transition-all"
+                >
+                  <ShoppingCart className="h-2.5 w-2.5" />
+                  View Order
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-1">
@@ -184,6 +196,15 @@ export function StationCard({ station, onEdit }: StationCardProps) {
             </button>
           ) : station.status === "OCCUPIED" && activeSession ? (
             <div className="flex items-center gap-1.5">
+              {/* Order items button */}
+              <button
+                onClick={() => setIsOrderOpen(true)}
+                disabled={isActing}
+                title="Add Items"
+                className="rounded-lg p-1.5 border border-brand/30 bg-brand/10 text-brand hover:bg-brand/20 transition-all disabled:opacity-50"
+              >
+                <ShoppingCart className="h-3.5 w-3.5" />
+              </button>
               {/* Pause / Resume toggle */}
               <button
                 onClick={() => handleSessionAction(isPaused ? "resume" : "pause")}
@@ -216,6 +237,16 @@ export function StationCard({ station, onEdit }: StationCardProps) {
         isOpen={isStartOpen}
         onClose={() => setIsStartOpen(false)}
       />
+
+      {/* Order Dialog */}
+      {activeSession && (
+        <OrderDialog
+          sessionId={activeSession.id}
+          sessionLabel={activeSession.customer?.name ?? station.name}
+          isOpen={isOrderOpen}
+          onClose={() => setIsOrderOpen(false)}
+        />
+      )}
 
       {/* Bill Generation Dialog */}
       <BillDetailDialog

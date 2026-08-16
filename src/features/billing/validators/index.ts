@@ -49,3 +49,18 @@ export const addAdjustmentSchema = z.object({
 });
 
 export type AddAdjustmentInput = z.infer<typeof addAdjustmentSchema>;
+
+// ── Add a food/drink item to a session (pre-order) ────────────────────────
+export const addOrderItemSchema = z.object({
+  foodItemId: z.string().min(1, "Food item ID is required"),
+  quantity: z.coerce.number().int().min(1, "Quantity must be at least 1"),
+});
+
+export type AddOrderItemInput = z.infer<typeof addOrderItemSchema>;
+
+// ── Update quantity of an existing order item ───────────────────────────
+export const updateOrderItemSchema = z.object({
+  quantity: z.coerce.number().int().min(1, "Quantity must be at least 1"),
+});
+
+export type UpdateOrderItemInput = z.infer<typeof updateOrderItemSchema>;
