@@ -2,6 +2,7 @@ import { Customer, Session, Membership, MembershipTier, Gender } from "@prisma/c
 
 export type CustomerListItem = Customer & {
   membership: Membership | null;
+  sessions: { id: string; station: { name: string } }[];
   _count: {
     sessions: number;
   };

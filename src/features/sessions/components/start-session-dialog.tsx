@@ -16,11 +16,12 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/toast";
 import { STATION_TYPE_LABELS, API_ROUTES } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
-import { Gamepad2, Users, MapPin, DollarSign, Search } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { ApiResponse } from "@/types";
 import { CustomerListItem } from "@/features/customers/types";
 import { cn } from "@/lib/utils";
+import { CustomerCreateDialog } from "@/features/customers/components/customer-create-dialog";
+import { UserPlus, Gamepad2, Users, MapPin, DollarSign, Search } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 interface StartSessionDialogProps {
   station: StationListItem;
@@ -37,6 +38,7 @@ export function StartSessionDialog({ station, isOpen, onClose }: StartSessionDia
   const [notes, setNotes] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerListItem | null>(null);
+  const [isCustomerCreateOpen, setIsCustomerCreateOpen] = useState(false);
 
   // Debounced customer search
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -66,6 +68,12 @@ export function StartSessionDialog({ station, isOpen, onClose }: StartSessionDia
     setDebouncedSearch("");
     setSelectedCustomer(null);
     onClose();
+  };
+
+  const handleCustomerCreated = (customer: CustomerListItem) => {
+    setSelectedCustomer(customer);
+    setCustomerSearch("");
+    setDebouncedSearch("");
   };
 
   const handleStart = async () => {
@@ -136,7 +144,7 @@ export function StartSessionDialog({ station, isOpen, onClose }: StartSessionDia
 
           {/* Customer Search */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-surface-muted">Customer (optional — leave blank for walk-in)</Label>
+            <Label className="text-sm font-medium text-surface-muted">Customer (required)</Label>
 
             {selectedCustomer ? (
               <div className="flex items-center justify-between rounded-lg border border-success/40 bg-success/10 px-4 py-2.5">
@@ -171,18 +179,58 @@ export function StartSessionDialog({ station, isOpen, onClose }: StartSessionDia
                     {isSearching ? (
                       <p className="px-4 py-3 text-sm text-surface-muted">Searching...</p>
                     ) : customers.length === 0 ? (
-                      <p className="px-4 py-3 text-sm text-surface-muted">No customers found</p>
-                    ) : (
-                      customers.map((c) => (
-                        <button
-                          key={c.id}
-                          onClick={() => { setSelectedCustomer(c); setCustomerSearch(""); setDebouncedSearch(""); }}
-                          className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-surface-hover transition-colors"
+                      <div className="px-4 py-4 text-center space-y-3">
+                        <p className="text-sm text-surface-muted">No customers found</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsCustomerCreateOpen(true)}
+                          className="border-brand/40 text-brand hover:bg-brand/10 w-full"
                         >
-                          <span className="text-sm font-medium text-white">{c.name}</span>
-                          <span className="text-xs text-surface-muted">{c.phone || c.email || ""}</span>
-                        </button>
-                      ))
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Register New Customer
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        {customers.map((c: CustomerListItem) => {
+                          const isInSession = c.sessions && c.sessions.length > 0;
+                          return (
+                            <button
+                              key={c.id}
+                              disabled={isInSession}
+                              onClick={() => { setSelectedCustomer(c); setCustomerSearch(""); setDebouncedSearch(""); }}
+                              className={cn(
+                                "w-full flex items-center justify-between px-4 py-2.5 text-left transition-colors",
+                                isInSession ? "opacity-50 cursor-not-allowed" : "hover:bg-surface-hover"
+                              )}
+                            >
+                              <div>
+                                <span className="text-sm font-medium text-white block">{c.name}</span>
+                                <span className="text-xs text-surface-muted">{c.phone || c.email || ""}</span>
+                              </div>
+                              {isInSession && (
+                                <span className="text-[10px] font-semibold text-warning bg-warning/15 border border-warning/30 rounded-full px-2 py-0.5 whitespace-nowrap">
+                                  In Session — {c.sessions[0].station.name}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                        <div className="p-2 border-t border-surface-border/50 bg-surface/30">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsCustomerCreateOpen(true)}
+                            className="text-brand hover:text-brand/80 hover:bg-brand/10 w-full justify-start"
+                          >
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Register New Customer
+                          </Button>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
@@ -236,13 +284,19 @@ export function StartSessionDialog({ station, isOpen, onClose }: StartSessionDia
           </Button>
           <Button
             onClick={handleStart}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !selectedCustomer}
             className="bg-success hover:bg-success/80 text-white font-semibold"
           >
             {isSubmitting ? "Starting..." : "▶ Start Session"}
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <CustomerCreateDialog
+        isOpen={isCustomerCreateOpen}
+        onClose={() => setIsCustomerCreateOpen(false)}
+        onSuccess={handleCustomerCreated}
+      />
     </Dialog>
   );
 }

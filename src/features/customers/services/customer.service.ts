@@ -37,6 +37,10 @@ export class CustomerService {
         where: whereClause,
         include: {
           membership: true,
+          sessions: {
+            where: { status: { in: ["ACTIVE", "PAUSED"] } },
+            select: { id: true, station: { select: { name: true } } }
+          },
           _count: {
             select: { sessions: true },
           },

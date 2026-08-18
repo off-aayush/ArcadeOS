@@ -98,6 +98,20 @@ export class SessionService {
       throw new Error("Station already has an active session");
     }
 
+    if (!customerId) {
+      throw new Error("A customer must be selected to start a session");
+    }
+
+    // Check if the customer already has an active session
+    const existingSession = await prisma.session.findFirst({
+      where: { customerId, status: { in: ["ACTIVE", "PAUSED"] } },
+      include: { station: { select: { name: true } } },
+    });
+
+    if (existingSession) {
+      throw new Error(`Customer is already in an active session on ${existingSession.station.name}`);
+    }
+
     const actorId = await getSystemUserId();
 
     // Run station update + session creation atomically
