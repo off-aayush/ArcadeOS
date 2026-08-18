@@ -29,12 +29,16 @@ import {
   CalendarDays,
   CheckCircle2,
   Loader2,
+  Minus,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PaymentDialog } from "./payment-dialog";
 import { ApplyDiscountDialog } from "./apply-discount-dialog";
 import { AddAdjustmentDialog } from "./add-adjustment-dialog";
 import { Tag, SlidersHorizontal } from "lucide-react";
+import { API_ROUTES } from "@/lib/constants";
 
 interface BillDetailDialogProps {
   /** Pass a sessionId to trigger "generate then show" flow */
@@ -77,6 +81,38 @@ export function BillDetailDialog({
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
   const [isAdjustmentDialogOpen, setIsAdjustmentDialogOpen] = useState(false);
+  const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
+
+  // Inline order item mutation — only available on DRAFT/PENDING bills
+  const canEditOrderItems =
+    bill !== null && bill.status !== "PAID" && bill.status !== "VOIDED";
+
+  const handleUpdateOrderQty = async (billItemId: string, newQty: number) => {
+    if (!bill) return;
+    const endpoint = API_ROUTES.orderItem(bill.session.id, billItemId);
+    setLoadingItems((p) => ({ ...p, [billItemId]: true }));
+    try {
+      const res = await fetch(
+        newQty < 1 ? endpoint : endpoint,
+        {
+          method: newQty < 1 ? "DELETE" : "PATCH",
+          headers: { "Content-Type": "application/json" },
+          ...(newQty >= 1 && { body: JSON.stringify({ quantity: newQty }) }),
+        }
+      );
+      const data: ApiResponse<BillWithDetails> = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error("error" in data ? data.error : "Failed to update item");
+      }
+      setBill(data.data);
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
+      queryClient.invalidateQueries({ queryKey: ["stations"] });
+    } catch (err: any) {
+      toast.add({ title: "Error", description: err.message, type: "error" });
+    } finally {
+      setLoadingItems((p) => ({ ...p, [billItemId]: false }));
+    }
+  };
 
   // Auto-generate when dialog opens with a sessionId and no bill yet
   const handleGenerate = async () => {
@@ -268,36 +304,61 @@ export function BillDetailDialog({
                     </tr>
                   </thead>
                   <tbody>
-                    {bill.items.map((item) => (
-                      <tr
-                        key={item.id}
-                        className="border-b border-surface-border/50 last:border-0"
-                      >
-                        <td className="px-4 py-3 text-white">
-                          {item.description}
-                        </td>
-                        <td className="px-4 py-3 text-right text-surface-muted font-mono">
-                          {Number(item.quantity)}
-                        </td>
-                        <td className="px-4 py-3 text-right text-white font-mono">
-                          {Number(item.unitPrice) < 0
-                            ? `−${formatCurrency(Math.abs(Number(item.unitPrice)))}`
-                            : formatCurrency(Number(item.unitPrice))}
-                        </td>
-                        <td
-                          className={cn(
-                            "px-4 py-3 text-right font-mono font-semibold",
-                            Number(item.totalPrice) < 0
-                              ? "text-success"
-                              : "text-white"
-                          )}
+                    {bill.items.map((item) => {
+                      const isFoodDrink = item.type === "FOOD" || item.type === "DRINK";
+                      const isMutating = !!loadingItems[item.id];
+                      const qty = Number(item.quantity);
+                      return (
+                        <tr
+                          key={item.id}
+                          className="border-b border-surface-border/50 last:border-0"
                         >
-                          {Number(item.totalPrice) < 0
-                            ? `−${formatCurrency(Math.abs(Number(item.totalPrice)))}`
-                            : formatCurrency(Number(item.totalPrice))}
-                        </td>
-                      </tr>
-                    ))}
+                          <td className="px-4 py-3 text-white">
+                            {item.description}
+                          </td>
+                          <td className="px-4 py-3 text-right text-surface-muted font-mono">
+                            {isFoodDrink && canEditOrderItems ? (
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  onClick={() => handleUpdateOrderQty(item.id, qty - 1)}
+                                  disabled={isMutating}
+                                  className="h-5 w-5 rounded border border-surface-border bg-surface text-white hover:bg-surface-hover transition-colors flex items-center justify-center disabled:opacity-40"
+                                >
+                                  {isMutating ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : qty === 1 ? <Trash2 className="h-2.5 w-2.5 text-danger" /> : <Minus className="h-2.5 w-2.5" />}
+                                </button>
+                                <span className="w-5 text-center text-xs font-bold text-white">{qty}</span>
+                                <button
+                                  onClick={() => handleUpdateOrderQty(item.id, qty + 1)}
+                                  disabled={isMutating}
+                                  className="h-5 w-5 rounded border border-surface-border bg-surface text-white hover:bg-surface-hover transition-colors flex items-center justify-center disabled:opacity-40"
+                                >
+                                  <Plus className="h-2.5 w-2.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              qty
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right text-white font-mono">
+                            {Number(item.unitPrice) < 0
+                              ? `−${formatCurrency(Math.abs(Number(item.unitPrice)))}`
+                              : formatCurrency(Number(item.unitPrice))}
+                          </td>
+                          <td
+                            className={cn(
+                              "px-4 py-3 text-right font-mono font-semibold",
+                              Number(item.totalPrice) < 0
+                                ? "text-success"
+                                : "text-white"
+                            )}
+                          >
+                            {Number(item.totalPrice) < 0
+                              ? `−${formatCurrency(Math.abs(Number(item.totalPrice)))}`
+                              : formatCurrency(Number(item.totalPrice))}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

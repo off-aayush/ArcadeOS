@@ -19,6 +19,7 @@
 - [x] Running Timers Overview (Dashboard Phase)
 - [x] Products & Categories (Inventory Phase)
 - [x] Stock Management (Inventory Phase)
+- [x] Inventory ↔ Session ↔ Billing POS flow
 - [x] Invoice Generation (Billing Phase)
 - [x] Payment Recording (Billing Phase)
 - [x] Billing — Discounts & Adjustments (Billing Phase)

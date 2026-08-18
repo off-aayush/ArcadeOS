@@ -85,4 +85,6 @@ export const API_ROUTES = {
   payments:  "/api/payments",
   users:     "/api/users",
   reports:   "/api/reports",
+  orders:    (sessionId: string) => `/api/sessions/${sessionId}/orders`,
+  orderItem: (sessionId: string, itemId: string) => `/api/sessions/${sessionId}/orders/${itemId}`,
 } as const;

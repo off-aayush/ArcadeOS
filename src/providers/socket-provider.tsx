@@ -47,6 +47,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
     });
 
+    socketInstance.on("invalidate_bills", () => {
+      console.log("[Socket.io] Re-fetching bills...");
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
+    });
+
     setSocket(socketInstance);
 
     return () => {
