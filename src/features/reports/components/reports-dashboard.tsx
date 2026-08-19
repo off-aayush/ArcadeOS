@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useReports } from "../hooks/use-reports";
 import { formatCurrency } from "@/lib/utils";
-import { Coins, Users, Gamepad2, TicketPercent, CalendarDays, AlertCircle } from "lucide-react";
+import { Coins, Users, Gamepad2, TicketPercent, AlertCircle } from "lucide-react";
+import { DateRangePicker, DateRange } from "@/components/ui/date-range-picker";
 import {
   BarChart,
   Bar,
@@ -29,8 +30,11 @@ function toInputDate(d: Date) {
 export function ReportsDashboard() {
   const now = new Date();
 
-  const [startDate, setStartDate] = useState(toInputDate(startOfMonth(now)));
-  const [endDate, setEndDate] = useState(toInputDate(endOfMonth(now)));
+  const [range, setRange] = useState<DateRange>({
+    startDate: toInputDate(startOfMonth(now)),
+    endDate: toInputDate(endOfMonth(now)),
+  });
+  const { startDate, endDate } = range;
   const [pieView, setPieView] = useState<PieView>("station");
 
   const dateRangeInvalid = startDate && endDate && startDate > endDate;
@@ -114,83 +118,24 @@ export function ReportsDashboard() {
           );
         })}
 
-        {/* Date Filter Card — same height as stats cards */}
-        <div className="glass-card p-4 flex flex-col justify-between border border-surface-border bg-surface-card/60 gap-2">
-          <div className="flex items-center gap-1.5">
-            <CalendarDays className="h-3.5 w-3.5 text-brand shrink-0" />
-            <span className="text-[10px] font-semibold text-surface-muted uppercase tracking-wider">Date Range</span>
+        {/* Date Filter Card */}
+        <div className="glass-card relative z-50 p-4 flex flex-col justify-between border border-surface-border bg-surface-card/60 gap-3">
+          <div>
+            <p className="text-[10px] font-semibold text-surface-muted uppercase tracking-wider mb-2">Date Range</p>
+            <DateRangePicker
+              value={range}
+              onChange={setRange}
+              presets={[
+                { label: "This Month", range: () => ({ startDate: toInputDate(startOfMonth(now)), endDate: toInputDate(endOfMonth(now)) }) },
+                { label: "Last 7 Days", range: () => { const s = new Date(now); s.setDate(s.getDate() - 6); return { startDate: toInputDate(s), endDate: toInputDate(now) }; } },
+                { label: "Last 30 Days", range: () => { const s = new Date(now); s.setDate(s.getDate() - 29); return { startDate: toInputDate(s), endDate: toInputDate(now) }; } },
+              ]}
+            />
           </div>
-
-          <div className="flex gap-1.5">
-            <div className="flex flex-col gap-0.5">
-              <label className="text-[10px] text-surface-muted">From</label>
-              <input
-                type="date"
-                value={startDate}
-                max={endDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full rounded-md border border-surface-border bg-surface px-2 py-1 text-xs text-white focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand [color-scheme:dark]"
-              />
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <label className="text-[10px] text-surface-muted">To</label>
-              <input
-                type="date"
-                value={endDate}
-                min={startDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full rounded-md border border-surface-border bg-surface px-2 py-1 text-xs text-white focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand [color-scheme:dark]"
-              />
-            </div>
-          </div>
-
-          {/* Quick presets */}
-          <div className="flex gap-1">
-            {[
-              {
-                label: "Mo",
-                title: "This Month",
-                fn: () => {
-                  setStartDate(toInputDate(startOfMonth(now)));
-                  setEndDate(toInputDate(endOfMonth(now)));
-                },
-              },
-              {
-                label: "7d",
-                title: "Last 7 Days",
-                fn: () => {
-                  const s = new Date(now);
-                  s.setDate(s.getDate() - 6);
-                  setStartDate(toInputDate(s));
-                  setEndDate(toInputDate(now));
-                },
-              },
-              {
-                label: "30d",
-                title: "Last 30 Days",
-                fn: () => {
-                  const s = new Date(now);
-                  s.setDate(s.getDate() - 29);
-                  setStartDate(toInputDate(s));
-                  setEndDate(toInputDate(now));
-                },
-              },
-            ].map((p) => (
-              <button
-                key={p.label}
-                onClick={p.fn}
-                title={p.title}
-                className="flex-1 rounded border border-surface-border bg-surface py-1 text-[10px] font-semibold text-surface-muted hover:border-brand/50 hover:text-brand transition-all"
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-
           {dateRangeInvalid && (
             <div className="flex items-center gap-1 text-[10px] text-danger">
               <AlertCircle className="h-3 w-3 shrink-0" />
-              <span>From must be less than To</span>
+              <span>From must be ≤ To</span>
             </div>
           )}
         </div>
@@ -198,7 +143,7 @@ export function ReportsDashboard() {
 
       {/* ── Charts Row ─────────────────────────────────────────────────────────── */}
       {error ? (
-        <div className="flex h-64 flex-col items-center justify-center text-danger gap-2">
+        <div className=" relative z-0 h-64 flex-col items-center justify-center text-danger gap-2">
           <AlertCircle className="h-6 w-6" />
           <p className="text-sm">{error.message}</p>
         </div>
