@@ -37,8 +37,9 @@ import { cn } from "@/lib/utils";
 import { PaymentDialog } from "./payment-dialog";
 import { ApplyDiscountDialog } from "./apply-discount-dialog";
 import { AddAdjustmentDialog } from "./add-adjustment-dialog";
-import { Tag, SlidersHorizontal } from "lucide-react";
+import { Tag, SlidersHorizontal, ShoppingCart } from "lucide-react";
 import { API_ROUTES } from "@/lib/constants";
+import { OrderDialog } from "@/features/sessions/components/order-dialog";
 
 interface BillDetailDialogProps {
   /** Pass a sessionId to trigger "generate then show" flow */
@@ -81,6 +82,7 @@ export function BillDetailDialog({
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
   const [isAdjustmentDialogOpen, setIsAdjustmentDialogOpen] = useState(false);
+  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
   const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
 
   // Inline order item mutation — only available on DRAFT/PENDING bills
@@ -185,7 +187,7 @@ export function BillDetailDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[650px] bg-surface-card border-surface-border text-white p-0 gap-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[700px] bg-surface-card border-surface-border text-white p-0 gap-0 overflow-hidden">
         <DialogHeader className="p-5 pb-4 border-b border-surface-border bg-surface/50">
           <DialogTitle className="flex items-center gap-2 text-xl font-bold tracking-tight">
             <Receipt className="h-5 w-5 text-brand" />
@@ -430,6 +432,16 @@ export function BillDetailDialog({
           <div className="flex gap-2">
             {bill && (bill.status === "PENDING" || bill.status === "PARTIALLY_PAID") && (
               <>
+                {bill.status === "PENDING" && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsOrderDialogOpen(true)}
+                    className="border-surface-border text-white hover:bg-surface hover:text-brand gap-2"
+                  >
+                    <ShoppingCart className="h-4 w-4" />
+                    Add Item
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   onClick={() => setIsDiscountDialogOpen(true)}
@@ -504,6 +516,28 @@ export function BillDetailDialog({
           onSuccess={(updatedBill) => {
             setBill(updatedBill);
             queryClient.invalidateQueries({ queryKey: ["bills"] });
+          }}
+        />
+      )}
+
+      {/* Order Dialog */}
+      {bill && (
+        <OrderDialog
+          sessionId={bill.session.id}
+          sessionLabel={bill.session.customer?.name ?? bill.session.station.name}
+          isOpen={isOrderDialogOpen}
+          onClose={() => {
+            setIsOrderDialogOpen(false);
+            queryClient.invalidateQueries({ queryKey: ["bills"] });
+            // Re-fetch the bill to update local state with new items
+            fetch(`/api/bills/${bill.id}`)
+              .then(res => res.json())
+              .then(data => {
+                if (data.success) {
+                  setBill(data.data);
+                }
+              })
+              .catch(console.error);
           }}
         />
       )}

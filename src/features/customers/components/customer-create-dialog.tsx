@@ -29,6 +29,7 @@ import { toast } from "@/components/ui/toast";
 interface CustomerCreateDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: (customer: any) => void;
 }
 
 type CustomerFormValues = {
@@ -47,7 +48,7 @@ const GENDER_LABELS: Record<Gender, string> = {
   PREFER_NOT_TO_SAY: "Prefer not to say",
 };
 
-export function CustomerCreateDialog({ isOpen, onClose }: CustomerCreateDialogProps) {
+export function CustomerCreateDialog({ isOpen, onClose, onSuccess }: CustomerCreateDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const queryClient = useQueryClient();
 
@@ -98,6 +99,11 @@ export function CustomerCreateDialog({ isOpen, onClose }: CustomerCreateDialogPr
 
       toast.add({ title: "Customer Added", description: `${values.name} has been registered.`, type: "success" });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      
+      if (onSuccess) {
+        onSuccess(data.data);
+      }
       handleClose();
     } catch (err: any) {
       toast.add({ title: "Error", description: err.message, type: "error" });

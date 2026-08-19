@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const bill = await BillingService.getDraftBillForSession(id);
+    const bill = await BillingService.getEditableBillForSession(id);
     return NextResponse.json(createSuccessResponse(bill));
   } catch (error: any) {
     console.error("API Error in GET /api/sessions/[id]/orders:", error);

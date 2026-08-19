@@ -276,8 +276,8 @@ export function OrderDialog({ sessionId, sessionLabel, isOpen, onClose }: OrderD
                               product.stock === 0
                                 ? "bg-danger/20 text-danger border border-danger/30"
                                 : stockLow
-                                ? "bg-warning/20 text-warning border border-warning/30"
-                                : "bg-success/15 text-success border border-success/30"
+                                  ? "bg-warning/20 text-warning border border-warning/30"
+                                  : "bg-success/15 text-success border border-success/30"
                             )}
                           >
                             {product.stock === 0 ? "Out" : `${product.stock} left`}
@@ -415,7 +415,7 @@ export function OrderDialog({ sessionId, sessionLabel, isOpen, onClose }: OrderD
           </div>
         </div>
 
-        <DialogFooter className="p-4 border-t border-surface-border bg-surface/50 shrink-0">
+        <DialogFooter className="m-1 border-t border-surface-border bg-surface/50 shrink-0">
           <Button
             variant="outline"
             onClick={onClose}

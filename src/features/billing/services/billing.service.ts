@@ -516,8 +516,12 @@ export class BillingService {
         },
       });
       if (!session) throw new Error("Session not found");
-      if (session.status !== "ACTIVE" && session.status !== "PAUSED") {
-        throw new Error("Items can only be added to ACTIVE or PAUSED sessions");
+      if (
+        session.status !== "ACTIVE" &&
+        session.status !== "PAUSED" &&
+        session.status !== "COMPLETED"
+      ) {
+        throw new Error("Items can only be added to ACTIVE, PAUSED, or COMPLETED sessions");
       }
 
       // 2. Validate food item & stock
@@ -537,8 +541,8 @@ export class BillingService {
       let billId: string;
       let billNumber: string;
       if (session.bill) {
-        if (session.bill.status !== "DRAFT") {
-          throw new Error("Cannot add items to a finalized bill");
+        if (session.bill.status !== "DRAFT" && session.bill.status !== "PENDING") {
+          throw new Error("Cannot add items to a PAID or VOIDED bill");
         }
         billId = session.bill.id;
         billNumber = session.bill.billNumber;
@@ -729,11 +733,12 @@ export class BillingService {
   }
 
   /**
-   * Get the current draft bill for a session (if any), with all items.
+   * Get the current editable bill for a session (if any), with all items.
+   * Editable bills are DRAFT (during session) or PENDING (after stop but before payment).
    */
-  static async getDraftBillForSession(sessionId: string): Promise<BillWithDetails | null> {
+  static async getEditableBillForSession(sessionId: string): Promise<BillWithDetails | null> {
     const bill = await prisma.bill.findFirst({
-      where: { sessionId, status: "DRAFT" },
+      where: { sessionId, status: { in: ["DRAFT", "PENDING"] } },
       include: BILL_DETAIL_INCLUDE,
     });
     return bill as BillWithDetails | null;
