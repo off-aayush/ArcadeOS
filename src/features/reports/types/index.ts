@@ -14,15 +14,23 @@ export interface RevenueChartData {
   revenue: number;
 }
 
-export interface StationUsageData {
+/** Station revenue from SESSION_TIME bill items only (no food/drinks) */
+export interface StationRevenueData {
   type: string;       // e.g. "PS5", "PC"
-  sessions: number;
+  revenue: number;
+}
+
+/** Inventory (food/drink) revenue from FOOD/DRINK bill items */
+export interface InventoryRevenueData {
+  name: string;       // e.g. "Pepsi", "Burger"
+  revenue: number;
 }
 
 export interface ReportData {
   summary: ReportSummary;
   revenueChart: RevenueChartData[];
-  stationUsage: StationUsageData[];
+  stationRevenue: StationRevenueData[];
+  inventoryRevenue: InventoryRevenueData[];
 }
 
 export interface ReportQueryParams {
