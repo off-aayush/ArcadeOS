@@ -35,6 +35,7 @@
 
 ## Recently Completed
 
+- **Customers** — Fixed statistics tracking (`totalVisits`, `totalSpend`) to accurately update in a single transaction during bill finalization/payment.
 - **Billing / Payments** — Fixed discount state issues, blocked negative bill totals, added ability to remove discounts and manual adjustments via UI, fixed payment modal stale state issue.
 - **Reports / Analytics** — Date-range filter (From → To, presets), daily revenue bar chart, dual pie chart (station gaming revenue vs. inventory revenue with toggle), all server-side filtered.
 

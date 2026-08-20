@@ -525,6 +525,7 @@ export function BillDetailDialog({
           onSuccess={(updatedBill) => {
             setBill(updatedBill);
             queryClient.invalidateQueries({ queryKey: ["bills"] });
+            queryClient.invalidateQueries({ queryKey: ["customers"] });
           }}
         />
       )}

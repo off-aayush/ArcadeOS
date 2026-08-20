@@ -295,6 +295,23 @@ export class BillingService {
         include: BILL_DETAIL_INCLUDE,
       });
 
+      // 4. Update Customer Stats
+      if (bill.sessionId) {
+        const session = await tx.session.findUnique({ where: { id: bill.sessionId } });
+        if (session && session.customerId) {
+          // Only increment visits if this is the FIRST payment on the bill
+          const isFirstPayment = Number(bill.amountPaid) === 0;
+
+          await tx.customer.update({
+            where: { id: session.customerId },
+            data: {
+              totalSpend: { increment: input.amount },
+              ...(isFirstPayment ? { totalVisits: { increment: 1 } } : {}),
+            },
+          });
+        }
+      }
+
       return updatedBill;
     });
 
