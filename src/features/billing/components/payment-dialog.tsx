@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -29,17 +29,19 @@ export function PaymentDialog({ bill, isOpen, onClose, onSuccess }: PaymentDialo
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Reset form when dialog opens/closes
+  // Sync state when dialog opens or bill updates
+  useEffect(() => {
+    if (isOpen) {
+      setAmount(bill.amountDue.toString());
+      setMethod("CASH");
+      setReference("");
+      setNotes("");
+    }
+  }, [isOpen, bill.id, bill.amountDue]);
+
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       onClose();
-      // Reset form state
-      setTimeout(() => {
-        setAmount(bill.amountDue.toString());
-        setMethod("CASH");
-        setReference("");
-        setNotes("");
-      }, 300);
     }
   };
 

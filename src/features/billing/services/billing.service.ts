@@ -405,8 +405,13 @@ export class BillingService {
           throw new Error(`Bill subtotal (₹${subtotal}) is below the minimum of ₹${discount.minBillAmount}`);
         }
 
+        const currentPayable = Number(bill.subtotal) - Number(bill.discountTotal) + Number(bill.adjustmentTotal);
+        if (currentPayable <= 0) {
+          throw new Error("Cannot apply discount. Payable amount is already zero.");
+        }
+
         if (discount.type === "PERCENTAGE") {
-          discountAmount = subtotal * Number(discount.value) / 100;
+          discountAmount = currentPayable * Number(discount.value) / 100;
           // Cap at maxAmount if defined
           if (discount.maxAmount && discountAmount > Number(discount.maxAmount)) {
             discountAmount = Number(discount.maxAmount);
@@ -418,9 +423,14 @@ export class BillingService {
           description = `${discount.name} (flat)`;
         }
 
+        discountAmount = Math.min(discountAmount, currentPayable);
         discountId = discount.id;
       } else if (input.customAmount) {
-        discountAmount = input.customAmount;
+        const currentPayable = Number(bill.subtotal) - Number(bill.discountTotal) + Number(bill.adjustmentTotal);
+        if (currentPayable <= 0) {
+          throw new Error("Cannot apply discount. Payable amount is already zero.");
+        }
+        discountAmount = Math.min(input.customAmount, currentPayable);
         description = `Custom discount`;
       } else {
         throw new Error("Either discountId or customAmount must be provided");
@@ -489,6 +499,40 @@ export class BillingService {
 
     return result as BillWithDetails;
   }
+
+  /**
+   * Remove a specific discount or manual adjustment item from the bill.
+   */
+  static async removeBillItem(billId: string, itemId: string): Promise<BillWithDetails> {
+    const result = await prisma.$transaction(async (tx) => {
+      const bill = await tx.bill.findUnique({ where: { id: billId } });
+      if (!bill) throw new Error("Bill not found");
+      if (bill.status === "PAID" || bill.status === "VOIDED") {
+        throw new Error("Cannot modify a PAID or VOIDED bill");
+      }
+
+      const item = await tx.billItem.findUnique({ where: { id: itemId } });
+      if (!item || item.billId !== billId) {
+        throw new Error("Item not found on this bill");
+      }
+      
+      if (item.type !== "DISCOUNT" && item.type !== "MANUAL_CREDIT" && item.type !== "MANUAL_CHARGE") {
+        throw new Error("Can only manually remove discounts and manual adjustments via this method");
+      }
+
+      await tx.billItem.delete({ where: { id: itemId } });
+
+      await BillingService.recalculateBillTotals(tx, billId);
+
+      return tx.bill.findUniqueOrThrow({
+        where: { id: billId },
+        include: BILL_DETAIL_INCLUDE,
+      });
+    });
+
+    return result as BillWithDetails;
+  }
+
 
   // ────────────────────────────────────────────────────────────────────────────
   // ORDER ITEM MANAGEMENT (pre-session food/drink ordering)
