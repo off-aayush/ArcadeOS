@@ -116,6 +116,30 @@ export function BillDetailDialog({
     }
   };
 
+  const handleRemoveBillItem = async (billItemId: string) => {
+    if (!bill) return;
+    const endpoint = `/api/bills/${bill.id}/items/${billItemId}`;
+    setLoadingItems((p) => ({ ...p, [billItemId]: true }));
+    try {
+      const res = await fetch(endpoint, { method: "DELETE" });
+      const data: ApiResponse<BillWithDetails> = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error("error" in data ? data.error : "Failed to remove item");
+      }
+      setBill(data.data);
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
+      toast.add({
+        title: "Item Removed",
+        description: "The bill has been updated.",
+        type: "success",
+      });
+    } catch (err: any) {
+      toast.add({ title: "Error", description: err.message, type: "error" });
+    } finally {
+      setLoadingItems((p) => ({ ...p, [billItemId]: false }));
+    }
+  };
+
   // Auto-generate when dialog opens with a sessionId and no bill yet
   const handleGenerate = async () => {
     if (!sessionId) return;
@@ -337,6 +361,17 @@ export function BillDetailDialog({
                                   <Plus className="h-2.5 w-2.5" />
                                 </button>
                               </div>
+                            ) : (item.type === "DISCOUNT" || item.type === "MANUAL_CREDIT" || item.type === "MANUAL_CHARGE") && canEditOrderItems ? (
+                              <div className="flex items-center justify-end gap-1">
+                                <span className="mr-2 text-xs font-bold text-white">{qty}</span>
+                                <button
+                                  onClick={() => handleRemoveBillItem(item.id)}
+                                  disabled={isMutating}
+                                  className="h-5 w-5 rounded border border-surface-border bg-surface text-white hover:bg-surface-hover transition-colors flex items-center justify-center disabled:opacity-40"
+                                >
+                                  {isMutating ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Trash2 className="h-2.5 w-2.5 text-danger" />}
+                                </button>
+                              </div>
                             ) : (
                               qty
                             )}
@@ -490,6 +525,7 @@ export function BillDetailDialog({
           onSuccess={(updatedBill) => {
             setBill(updatedBill);
             queryClient.invalidateQueries({ queryKey: ["bills"] });
+            queryClient.invalidateQueries({ queryKey: ["customers"] });
           }}
         />
       )}
