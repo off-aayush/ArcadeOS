@@ -33,6 +33,7 @@ import type {
   MembershipTier,
   PricingModel,
   Gender,
+  StationPricing,
 } from "@prisma/client";
 
 // Re-export all Prisma types
@@ -62,6 +63,7 @@ export type {
   MembershipTier,
   PricingModel,
   Gender,
+  StationPricing,
 };
 
 // ── API Response Wrapper ──────────────────────────────────────────────────────

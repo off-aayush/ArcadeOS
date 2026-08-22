@@ -127,7 +127,9 @@ export function StartSessionDialog({ station, isOpen, onClose }: StartSessionDia
               <span>{STATION_TYPE_LABELS[station.type as keyof typeof STATION_TYPE_LABELS]}</span>
               <span className="flex items-center gap-1">
                 <DollarSign className="h-3 w-3" />
-                {formatCurrency(Number(station.ratePerHour))}/hr
+                {station.pricings?.length > 1
+                  ? `From ${formatCurrency(Math.min(...station.pricings.map(p => Number(p.ratePerHour))))}/hr`
+                  : `${formatCurrency(Number(station.pricings?.[0]?.ratePerHour ?? station.ratePerHour))}/hr`}
               </span>
               <span className="flex items-center gap-1">
                 <Users className="h-3 w-3" />
@@ -238,27 +240,64 @@ export function StartSessionDialog({ station, isOpen, onClose }: StartSessionDia
             )}
           </div>
 
-          {/* Player Count */}
-          <div className="space-y-1.5">
+          {/* Player Count — pricing radio buttons */}
+          <div className="space-y-2">
             <Label className="text-sm font-medium text-surface-muted">Number of Players</Label>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setPlayerCount(Math.max(1, playerCount - 1))}
-                className="h-9 w-9 rounded-lg border border-surface-border bg-surface text-white hover:bg-surface-hover transition-colors text-lg font-bold"
-              >
-                −
-              </button>
-              <span className="w-12 text-center text-lg font-bold text-white">{playerCount}</span>
-              <button
-                type="button"
-                onClick={() => setPlayerCount(Math.min(station.maxPlayers, playerCount + 1))}
-                className="h-9 w-9 rounded-lg border border-surface-border bg-surface text-white hover:bg-surface-hover transition-colors text-lg font-bold"
-              >
-                +
-              </button>
-              <span className="text-xs text-surface-muted">(max {station.maxPlayers})</span>
-            </div>
+
+            {station.pricings && station.pricings.length > 0 ? (
+              <div className="grid gap-2">
+                {station.pricings.map((pricing) => {
+                  const isSelected = playerCount === pricing.playerCount;
+                  return (
+                    <button
+                      key={pricing.playerCount}
+                      type="button"
+                      onClick={() => setPlayerCount(pricing.playerCount)}
+                      className={cn(
+                        "flex items-center justify-between w-full rounded-lg border px-4 py-3 text-sm font-medium transition-all",
+                        isSelected
+                          ? "border-brand bg-brand/15 text-white"
+                          : "border-surface-border bg-surface text-surface-muted hover:border-brand/50 hover:bg-surface-hover"
+                      )}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className={cn(
+                          "h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                          isSelected ? "border-brand" : "border-surface-muted"
+                        )}>
+                          {isSelected && <span className="h-2 w-2 rounded-full bg-brand" />}
+                        </span>
+                        <Users className="h-3.5 w-3.5" />
+                        {pricing.playerCount} {pricing.playerCount === 1 ? "Player" : "Players"}
+                      </span>
+                      <span className={cn("font-bold", isSelected ? "text-brand" : "text-white")}>
+                        {formatCurrency(Number(pricing.ratePerHour))}/hr
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Fallback: no pricings configured — show +/- spinner */
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPlayerCount(Math.max(1, playerCount - 1))}
+                  className="h-9 w-9 rounded-lg border border-surface-border bg-surface text-white hover:bg-surface-hover transition-colors text-lg font-bold"
+                >
+                  −
+                </button>
+                <span className="w-12 text-center text-lg font-bold text-white">{playerCount}</span>
+                <button
+                  type="button"
+                  onClick={() => setPlayerCount(Math.min(station.maxPlayers, playerCount + 1))}
+                  className="h-9 w-9 rounded-lg border border-surface-border bg-surface text-white hover:bg-surface-hover transition-colors text-lg font-bold"
+                >
+                  +
+                </button>
+                <span className="text-xs text-surface-muted">(max {station.maxPlayers})</span>
+              </div>
+            )}
           </div>
 
           {/* Notes */}

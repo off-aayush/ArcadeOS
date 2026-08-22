@@ -304,6 +304,16 @@ export function BillDetailDialog({
                     )}
                   </div>
                 </div>
+                {/* Players */}
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-surface-muted shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="text-xs text-surface-muted">Players</span>
+                    <span className="font-medium text-white">
+                      {session?.playerCount ?? 1} {(session?.playerCount ?? 1) === 1 ? 'Player' : 'Players'}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 

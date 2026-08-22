@@ -55,6 +55,10 @@ export class StationService {
             },
           },
         },
+        pricings: {
+          where: { isActive: true },
+          orderBy: { playerCount: "asc" },
+        },
       },
       orderBy: {
         name: "asc",
@@ -89,6 +93,10 @@ export class StationService {
             },
           },
         },
+        pricings: {
+          where: { isActive: true },
+          orderBy: { playerCount: "asc" },
+        },
       },
     });
     return station as StationListItem | null;
@@ -97,13 +105,33 @@ export class StationService {
   /**
    * Creates a new station in the database.
    */
-  static async create(data: Omit<Prisma.StationCreateInput, "status">): Promise<Station> {
-    const station = await prisma.station.create({
-      data: {
-        ...data,
-        status: "AVAILABLE",
-      },
+  static async create(data: Omit<Prisma.StationCreateInput, "status"> & { pricings?: { playerCount: number; ratePerHour: number; ratePerMinute?: number | null }[] }): Promise<Station> {
+    const { pricings, ...stationData } = data;
+    
+    const station = await prisma.$transaction(async (tx) => {
+      const newStation = await tx.station.create({
+        data: {
+          ...stationData,
+          status: "AVAILABLE",
+        },
+      });
+
+      if (pricings && pricings.length > 0) {
+        await this.upsertPricings(newStation.id, newStation.maxPlayers, pricings, tx);
+      } else {
+        // Fallback: create a 1-player pricing based on ratePerHour
+        await tx.stationPricing.create({
+          data: {
+            stationId: newStation.id,
+            playerCount: 1,
+            ratePerHour: newStation.ratePerHour,
+            ratePerMinute: newStation.ratePerMinute,
+          },
+        });
+      }
+      return newStation;
     });
+
     emitSocketEvent("invalidate_stations");
     return station;
   }
@@ -135,10 +163,21 @@ export class StationService {
       }
     }
 
-    const updated = await prisma.station.update({
-      where: { id },
-      data,
+    const { pricings, ...updateData } = data as any; // Cast because data type might not include pricings in Prisma.StationUpdateInput
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedStation = await tx.station.update({
+        where: { id },
+        data: updateData,
+      });
+
+      if (pricings) {
+        await this.upsertPricings(id, updatedStation.maxPlayers, pricings, tx);
+      }
+
+      return updatedStation;
     });
+    
     emitSocketEvent("invalidate_stations");
     return updated;
   }
@@ -225,5 +264,45 @@ export class StationService {
       todayCustomers,
       avgSessionDurationMs,
     };
+  }
+
+  /**
+   * Private helper to upsert pricings and deactivate invalid ones.
+   */
+  private static async upsertPricings(
+    stationId: string, 
+    maxPlayers: number, 
+    pricings: { playerCount: number; ratePerHour: number; ratePerMinute?: number | null }[],
+    tx: Prisma.TransactionClient
+  ) {
+    // 1. Deactivate any pricing where playerCount > maxPlayers
+    await tx.stationPricing.updateMany({
+      where: {
+        stationId,
+        playerCount: { gt: maxPlayers }
+      },
+      data: { isActive: false }
+    });
+
+    // 2. Upsert provided pricings (up to maxPlayers)
+    for (const p of pricings) {
+      if (p.playerCount > maxPlayers) continue; // safety check
+      
+      await tx.stationPricing.upsert({
+        where: { stationId_playerCount: { stationId, playerCount: p.playerCount } },
+        update: {
+          ratePerHour: p.ratePerHour,
+          ratePerMinute: p.ratePerMinute ?? null,
+          isActive: true,
+        },
+        create: {
+          stationId,
+          playerCount: p.playerCount,
+          ratePerHour: p.ratePerHour,
+          ratePerMinute: p.ratePerMinute ?? null,
+          isActive: true,
+        },
+      });
+    }
   }
 }

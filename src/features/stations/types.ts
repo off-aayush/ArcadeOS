@@ -1,4 +1,4 @@
-import { Station, StationType, StationStatus, Session, Customer, User } from "@/types";
+import { Station, StationType, StationStatus, Session, Customer, User, StationPricing } from "@/types";
 
 export type StationListItem = Station & {
   sessions: (Session & {
@@ -10,6 +10,7 @@ export type StationListItem = Station & {
       grandTotal: any; // Prisma Decimal, but 'any' is easiest since we don't strict type Decimal to FE everywhere
     } | null;
   })[];
+  pricings: StationPricing[];
 };
 
 export type StationStatusFilter = StationStatus | "ALL";

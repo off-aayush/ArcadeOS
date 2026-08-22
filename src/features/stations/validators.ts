@@ -7,6 +7,12 @@ export const stationQuerySchema = z.object({
   search: z.string().optional(),
 });
 
+export const stationPricingSchema = z.object({
+  playerCount: z.number().int().min(1),
+  ratePerHour: z.number().min(0, "Rate per hour must be 0 or greater"),
+  ratePerMinute: z.number().min(0, "Rate per minute must be 0 or greater").optional().nullable(),
+});
+
 export const stationCreateSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
   type: z.nativeEnum(StationType),
@@ -17,6 +23,7 @@ export const stationCreateSchema = z.object({
   description: z.string().max(500).optional().nullable(),
   imageUrl: z.string().url("Invalid image URL").or(z.literal("")).optional().nullable(),
   location: z.string().max(100).optional().nullable(),
+  pricings: z.array(stationPricingSchema).optional(),
 });
 
 export const stationUpdateSchema = stationCreateSchema.partial().extend({

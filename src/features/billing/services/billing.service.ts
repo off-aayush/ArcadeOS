@@ -24,6 +24,8 @@ const BILL_DETAIL_INCLUDE = {
       station: { select: { id: true, name: true, type: true } },
       customer: { select: { id: true, name: true, phone: true } },
     },
+    // We explicitly select everything plus the relations above to ensure playerCount is returned,
+    // actually Prisma include already selects all scalars.
   },
   issuedBy: { select: { id: true, name: true } },
 } satisfies Prisma.BillInclude;
@@ -119,7 +121,7 @@ export class BillingService {
           data: {
             billId: existingBillId,
             type: "SESSION_TIME",
-            description: `Gaming session — ${session.station.name}`,
+            description: `Gaming session — ${session.station.name} (${session.playerCount} Player${session.playerCount > 1 ? 's' : ''})`,
             quantity: 1,
             unitPrice: sessionCharge,
             totalPrice: sessionCharge,
@@ -168,7 +170,7 @@ export class BillingService {
           items: {
             create: {
               type: "SESSION_TIME",
-              description: `Gaming session — ${session.station.name}`,
+              description: `Gaming session — ${session.station.name} (${session.playerCount} Player${session.playerCount > 1 ? 's' : ''})`,
               quantity: 1,
               unitPrice: sessionCharge,
               totalPrice: sessionCharge,
