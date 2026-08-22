@@ -88,12 +88,12 @@ export function StationEditDialog({
         imageUrl: station.imageUrl || "",
         status: station.status,
         isActive: station.isActive,
-        pricings: station.pricings?.length 
+        pricings: station.pricings?.length
           ? station.pricings.map(p => ({
-              playerCount: p.playerCount,
-              ratePerHour: Number(p.ratePerHour),
-              ratePerMinute: p.ratePerMinute ? Number(p.ratePerMinute) : null,
-            }))
+            playerCount: p.playerCount,
+            ratePerHour: Number(p.ratePerHour),
+            ratePerMinute: p.ratePerMinute ? Number(p.ratePerMinute) : null,
+          }))
           : [{ playerCount: 1, ratePerHour: Number(station.ratePerHour), ratePerMinute: station.ratePerMinute ? Number(station.ratePerMinute) : null }],
       });
     }
@@ -105,9 +105,9 @@ export function StationEditDialog({
   // Keep pricings array in sync with maxPlayers
   useEffect(() => {
     if (!maxPlayers || maxPlayers < 1) return;
-    
+
     const currentPricings = [...(pricings || [])];
-    
+
     if (currentPricings.length < maxPlayers) {
       // Add missing rows
       for (let i = currentPricings.length + 1; i <= maxPlayers; i++) {
@@ -176,7 +176,7 @@ export function StationEditDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[480px] bg-surface-card border-surface-border text-white">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto bg-surface-card border-surface-border text-white">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold tracking-tight">Edit Station — {station.name}</DialogTitle>
         </DialogHeader>
@@ -231,7 +231,7 @@ export function StationEditDialog({
             </div>
 
             {/* Pricing Model */}
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 col-span-2">
               <Label htmlFor="pricingModel" className="text-sm font-medium text-surface-muted">Pricing Model</Label>
               <Select
                 value={selectedPricingModel}
@@ -251,18 +251,50 @@ export function StationEditDialog({
               </Select>
             </div>
 
-            {/* Rate Per Hour */}
-            <div className="space-y-1.5">
-              <Label htmlFor="ratePerHour" className="text-sm font-medium text-surface-muted">Rate Per Hour (₹)</Label>
-              <Input
-                id="ratePerHour"
-                type="number"
-                className="bg-surface border-surface-border text-white"
-                {...register("ratePerHour", { valueAsNumber: true })}
-              />
-              {errors.ratePerHour && (
-                <p className="text-xs text-danger">{errors.ratePerHour.message}</p>
-              )}
+            {/* Per-Player Pricing Table */}
+            <div className="col-span-2 space-y-2 mt-2">
+              <Label className="text-sm font-medium text-surface-muted">Per-Player Pricing</Label>
+              <div className="border border-surface-border rounded-lg overflow-hidden">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-surface border-b border-surface-border text-surface-muted text-xs uppercase">
+                    <tr>
+                      <th className="px-4 py-2 font-medium">Players</th>
+                      <th className="px-4 py-2 font-medium">Rate / Hour (₹)</th>
+                      {selectedPricingModel === PricingModel.PER_MINUTE && (
+                        <th className="px-4 py-2 font-medium">Rate / Minute (₹)</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-surface-border">
+                    {pricings?.map((pricing, index) => (
+                      <tr key={index} className="bg-surface-card hover:bg-surface-hover/50 transition-colors">
+                        <td className="px-4 py-2 whitespace-nowrap font-medium text-white">
+                          {pricing.playerCount} {pricing.playerCount === 1 ? 'Player' : 'Players'}
+                        </td>
+                        <td className="px-4 py-2">
+                          <Input
+                            type="number"
+                            className="bg-surface border-surface-border text-white h-8 w-full"
+                            {...register(`pricings.${index}.ratePerHour`, { valueAsNumber: true })}
+                          />
+                        </td>
+                        {selectedPricingModel === PricingModel.PER_MINUTE && (
+                          <td className="px-4 py-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="bg-surface border-surface-border text-white h-8 w-full"
+                              {...register(`pricings.${index}.ratePerMinute`, {
+                                setValueAs: v => v === "" ? null : parseFloat(v)
+                              })}
+                            />
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Station Status */}

@@ -35,6 +35,7 @@
 
 ## Recently Completed
 
+- **Per-Player Station Pricing** — Dynamic pricing table based on max players, snapshotted rate on session start, and full radio-button selection UI on the dashboard.
 - **Reports / Analytics** — Date-range filter (From → To, presets), daily revenue bar chart, dual pie chart (station gaming revenue vs. inventory revenue with toggle), all server-side filtered.
 
 ## Pending
