@@ -154,6 +154,11 @@ export function StationCard({ station, onEdit }: StationCardProps) {
                 <Users className="h-3.5 w-3.5" />
                 {activeSession.customer?.name || "Walk-in Customer"}
               </p>
+              <p className="text-xs text-surface-muted flex items-center justify-center gap-1">
+                {activeSession.playerCount} {activeSession.playerCount === 1 ? "Player" : "Players"}
+                <span className="text-surface-border">·</span>
+                {formatCurrency(Number(activeSession.ratePerHour))}/hr
+              </p>
               {isPaused && (
                 <span className="inline-block text-[10px] font-semibold text-warning bg-warning/15 border border-warning/30 rounded-full px-2 py-0.5">
                   PAUSED
@@ -172,9 +177,13 @@ export function StationCard({ station, onEdit }: StationCardProps) {
             </div>
           ) : (
             <div className="space-y-1">
-              <p className="text-sm text-surface-muted">Rate per hour</p>
+              <p className="text-sm text-surface-muted">
+                {station.pricings?.length > 1 ? "Starting from" : "Rate per hour"}
+              </p>
               <p className="text-2xl font-bold text-white">
-                {formatCurrency(Number(station.ratePerHour))}
+                {station.pricings?.length > 0
+                  ? formatCurrency(Math.min(...station.pricings.map(p => Number(p.ratePerHour))))
+                  : formatCurrency(Number(station.ratePerHour))}
               </p>
             </div>
           )}

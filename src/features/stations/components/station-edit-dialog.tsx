@@ -45,6 +45,7 @@ type StationFormValues = {
   imageUrl: string;
   status: StationStatus;
   isActive: boolean;
+  pricings: { playerCount: number; ratePerHour: number; ratePerMinute: number | null }[];
 };
 
 export function StationEditDialog({
@@ -87,9 +88,41 @@ export function StationEditDialog({
         imageUrl: station.imageUrl || "",
         status: station.status,
         isActive: station.isActive,
+        pricings: station.pricings?.length 
+          ? station.pricings.map(p => ({
+              playerCount: p.playerCount,
+              ratePerHour: Number(p.ratePerHour),
+              ratePerMinute: p.ratePerMinute ? Number(p.ratePerMinute) : null,
+            }))
+          : [{ playerCount: 1, ratePerHour: Number(station.ratePerHour), ratePerMinute: station.ratePerMinute ? Number(station.ratePerMinute) : null }],
       });
     }
   }, [station, reset]);
+
+  const maxPlayers = watch("maxPlayers");
+  const pricings = watch("pricings");
+
+  // Keep pricings array in sync with maxPlayers
+  useEffect(() => {
+    if (!maxPlayers || maxPlayers < 1) return;
+    
+    const currentPricings = [...(pricings || [])];
+    
+    if (currentPricings.length < maxPlayers) {
+      // Add missing rows
+      for (let i = currentPricings.length + 1; i <= maxPlayers; i++) {
+        currentPricings.push({
+          playerCount: i,
+          ratePerHour: currentPricings[0]?.ratePerHour || 100,
+          ratePerMinute: null,
+        });
+      }
+      setValue("pricings", currentPricings);
+    } else if (currentPricings.length > maxPlayers) {
+      // Remove excess rows
+      setValue("pricings", currentPricings.slice(0, maxPlayers));
+    }
+  }, [maxPlayers, setValue, pricings]);
 
   if (!station) return null;
 
@@ -103,12 +136,17 @@ export function StationEditDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...values,
-          ratePerHour: Number(values.ratePerHour),
-          ratePerMinute: values.ratePerMinute ? Number(values.ratePerMinute) : null,
+          ratePerHour: Number(values.pricings?.[0]?.ratePerHour || values.ratePerHour),
+          ratePerMinute: values.pricings?.[0]?.ratePerMinute ? Number(values.pricings[0].ratePerMinute) : null,
           maxPlayers: Number(values.maxPlayers),
           description: values.description || null,
           location: values.location || null,
           imageUrl: values.imageUrl || null,
+          pricings: values.pricings?.map(p => ({
+            ...p,
+            ratePerHour: Number(p.ratePerHour),
+            ratePerMinute: p.ratePerMinute ? Number(p.ratePerMinute) : null,
+          })),
         }),
       });
 

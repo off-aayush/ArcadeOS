@@ -44,7 +44,7 @@ export async function PATCH(
       );
     }
 
-    const station = await StationService.update(id, parsed.data);
+    const station = await StationService.update(id, parsed.data as any);
     return NextResponse.json(createSuccessResponse(station, "Station updated successfully"));
   } catch (error: any) {
     console.error(`API Error in PATCH /api/stations/[id]:`, error);

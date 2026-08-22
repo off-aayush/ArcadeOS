@@ -87,7 +87,10 @@ export class SessionService {
     // Fetch station with current active sessions
     const station = await prisma.station.findFirst({
       where: { id: stationId, isActive: true, deletedAt: null },
-      include: { sessions: { where: { status: { in: ["ACTIVE", "PAUSED"] } } } },
+      include: { 
+        sessions: { where: { status: { in: ["ACTIVE", "PAUSED"] } } },
+        pricings: { where: { isActive: true } }
+      },
     });
 
     if (!station) throw new Error("Station not found or inactive");
@@ -112,6 +115,14 @@ export class SessionService {
       throw new Error(`Customer is already in an active session on ${existingSession.station.name}`);
     }
 
+    if (playerCount < 1 || playerCount > station.maxPlayers) {
+      throw new Error(`Player count must be between 1 and ${station.maxPlayers}`);
+    }
+
+    // Resolve pricing based on player count (Session only stores ratePerHour snapshot)
+    const pricing = station.pricings.find(p => p.playerCount === playerCount);
+    const resolvedRatePerHour = pricing ? pricing.ratePerHour : station.ratePerHour;
+
     const actorId = await getSystemUserId();
 
     // Run station update + session creation atomically
@@ -127,8 +138,8 @@ export class SessionService {
           stationId,
           customerId: customerId || null,
           startedById: actorId,
-          ratePerHour: station.ratePerHour,
-          pricingModel: station.pricingModel,
+          ratePerHour: resolvedRatePerHour,
+          pricingModel: station.pricingModel, // snapshot from station
           playerCount,
           notes,
           status: "ACTIVE",
