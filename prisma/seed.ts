@@ -60,7 +60,7 @@ async function main() {
   ];
 
   for (const s of stationData) {
-    await prisma.station.upsert({
+    const station = await prisma.station.upsert({
       where: { name: s.name },
       update: {},
       create: {
@@ -73,8 +73,23 @@ async function main() {
         isActive: true,
       },
     });
+
+    // Create pricing for each player count
+    for (let i = 1; i <= s.maxPlayers; i++) {
+      const rateMultiplier = i === 1 ? 1 : (i === 2 ? 1.8 : (i === 3 ? 2.5 : 3)); // Just for seeding sensible values
+      await prisma.stationPricing.upsert({
+        where: { stationId_playerCount: { stationId: station.id, playerCount: i } },
+        update: {},
+        create: {
+          stationId: station.id,
+          playerCount: i,
+          ratePerHour: Math.round(s.ratePerHour * rateMultiplier),
+          isActive: true,
+        },
+      });
+    }
   }
-  console.log(`  ✓ ${stationData.length} stations created`);
+  console.log(`  ✓ ${stationData.length} stations and pricings created`);
 
   // ── Food Items ─────────────────────────────────────────────────────────────
   const foodItems = [
