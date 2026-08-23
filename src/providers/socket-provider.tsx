@@ -18,7 +18,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Only connect on the client side
-    const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    // If NEXT_PUBLIC_APP_URL is not set, we pass empty string so Socket.IO defaults to window.location.origin
+    const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "";
     const socketInstance = io(siteUrl, {
       path: "/socket.io",
     });
