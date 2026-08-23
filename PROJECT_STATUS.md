@@ -46,7 +46,10 @@
 
 ## Migrations
 
-- 001_initial
+- 20260804214607_001_initial
+- 20260804215223_002_add_unique_constraints
+- 20260808210322_add_food_stock
+- 20260822072224_003_station_pricing
 
 ---
 
