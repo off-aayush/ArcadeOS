@@ -109,11 +109,20 @@ enum PaymentStatus {
   REFUNDED
 }
 
-/// Role of a system user (receptionist or admin)
-enum UserRole {
-  RECEPTIONIST
-  ADMIN
-  SUPER_ADMIN
+/// Granular permissions for RBAC
+enum Permission {
+  VIEW_DASHBOARD
+  MANAGE_STATIONS
+  MANAGE_SESSIONS
+  MANAGE_CUSTOMERS
+  MANAGE_BILLING
+  MANAGE_INVENTORY
+  VIEW_REPORTS
+  MANAGE_DISCOUNTS
+  MANAGE_USERS
+  VIEW_AUDIT_LOGS
+  MANAGE_SETTINGS
+  MANAGE_PARLOUR_PROFILE
 }
 
 /// The type of action recorded in audit log
@@ -148,6 +157,20 @@ enum PricingModel {
 // ─────────────────────────────────────────────────────────────────────────────
 // MODELS
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// RBAC Role mapping to granular permissions
+model Role {
+  id          String       @id @default(cuid())
+  name        String       @unique // e.g. "SUPER_ADMIN", "ADMIN", "RECEPTIONIST"
+  description String?
+  permissions Permission[]
+  isSystem    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  users       User[]
+
+  @@map("roles")
+}
 
 /// Represents a physical gaming unit in the lounge.
 /// A station has a type, a pricing model, and an operational status.
@@ -473,7 +496,8 @@ model User {
   passwordHash String
   name         String
   phone        String?
-  role         UserRole  @default(RECEPTIONIST)
+  roleId       String
+  role         Role      @relation(fields: [roleId], references: [id])
   avatarUrl    String?
 
   isActive     Boolean   @default(true)
@@ -494,7 +518,7 @@ model User {
   auditLogs        AuditLog[]
 
   @@index([email])
-  @@index([role])
+  @@index([roleId])
   @@index([isActive])
   @@map("users")
 }

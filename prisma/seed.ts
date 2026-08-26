@@ -8,7 +8,7 @@
 //   • 3 Discount templates
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { PrismaClient, StationType, StationStatus, PricingModel, FoodCategory, DiscountType, UserRole } from "@prisma/client";
+import { PrismaClient, StationType, StationStatus, PricingModel, FoodCategory, DiscountType } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -25,7 +25,7 @@ async function main() {
       email: "admin@arcadeos.local",
       passwordHash: adminPasswordHash,
       name: "Admin User",
-      role: UserRole.ADMIN,
+      roleId: "role_admin",
       isActive: true,
     },
   });
@@ -39,7 +39,7 @@ async function main() {
       email: "reception@arcadeos.local",
       passwordHash: receptionPasswordHash,
       name: "Front Desk",
-      role: UserRole.RECEPTIONIST,
+      roleId: "role_receptionist",
       isActive: true,
     },
   });
