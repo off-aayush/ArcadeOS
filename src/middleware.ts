@@ -37,7 +37,7 @@ export async function middleware(request: NextRequest) {
     // Forward user identity to page/layout server components via headers
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-user-id", user.id);
-    requestHeaders.set("x-user-role", user.role);
+    requestHeaders.set("x-user-role", user.role.name);
 
     return NextResponse.next({ request: { headers: requestHeaders } });
   }

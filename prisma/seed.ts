@@ -8,13 +8,28 @@
 //   • 3 Discount templates
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { PrismaClient, StationType, StationStatus, PricingModel, FoodCategory, DiscountType, UserRole } from "@prisma/client";
+import { PrismaClient, StationType, StationStatus, PricingModel, FoodCategory, DiscountType } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log("🌱 Seeding ArcadeOS database...");
+
+  // ── Super Admin User ───────────────────────────────────────────────────────
+  const superAdminPasswordHash = await bcrypt.hash("superadmin1234", 12);
+  const superAdmin = await prisma.user.upsert({
+    where: { email: "superadmin@arcadeos.local" },
+    update: { passwordHash: superAdminPasswordHash },
+    create: {
+      email: "superadmin@arcadeos.local",
+      passwordHash: superAdminPasswordHash,
+      name: "Super Admin",
+      roleId: "role_super_admin",
+      isActive: true,
+    },
+  });
+  console.log(`  ✓ Super Admin user: ${superAdmin.email} (password: superadmin1234)`);
 
   // ── Admin User ─────────────────────────────────────────────────────────────
   const adminPasswordHash = await bcrypt.hash("admin1234", 12);
@@ -25,7 +40,7 @@ async function main() {
       email: "admin@arcadeos.local",
       passwordHash: adminPasswordHash,
       name: "Admin User",
-      role: UserRole.ADMIN,
+      roleId: "role_admin",
       isActive: true,
     },
   });
@@ -39,7 +54,7 @@ async function main() {
       email: "reception@arcadeos.local",
       passwordHash: receptionPasswordHash,
       name: "Front Desk",
-      role: UserRole.RECEPTIONIST,
+      roleId: "role_receptionist",
       isActive: true,
     },
   });

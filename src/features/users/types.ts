@@ -1,17 +1,18 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Auth Feature — Types
+// Users Feature — Types
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { Permission } from "@prisma/client";
 
-/**
- * The minimal user payload stored inside the JWT.
- * Kept small to reduce cookie size.
- */
-export interface SessionUser {
+export interface UserListItem {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
+  avatarUrl: string | null;
+  isActive: boolean;
+  lastLoginAt: Date | null;
+  createdAt: Date;
   role: {
     id: string;
     name: string;
@@ -19,26 +20,23 @@ export interface SessionUser {
   };
 }
 
-/**
- * Input shape for the login form.
- */
-export interface LoginInput {
+export interface CreateUserInput {
+  name: string;
   email: string;
   password: string;
+  roleId: string;
+  phone?: string;
 }
 
-/**
- * Public user object returned by /api/auth/me.
- * Omits the password hash.
- */
-export interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-  role: {
-    id: string;
-    name: string;
-    permissions: Permission[];
-  };
-  avatarUrl: string | null;
+export interface UpdateUserInput {
+  name?: string;
+  email?: string;
+  phone?: string;
+  roleId?: string;
+  isActive?: boolean;
+}
+
+export interface ChangePasswordInput {
+  userId: string;
+  newPassword: string;
 }
