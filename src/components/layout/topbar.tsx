@@ -82,7 +82,7 @@ export function Topbar() {
                 {user?.name ?? "Loading…"}
               </span>
               <span className="text-xs text-surface-muted leading-tight">
-                {user ? ROLE_LABELS[user.role] ?? user.role : ""}
+                {user ? ROLE_LABELS[user.role.name] ?? user.role.name : ""}
               </span>
             </div>
             <ChevronDown className="h-4 w-4 text-surface-muted" />

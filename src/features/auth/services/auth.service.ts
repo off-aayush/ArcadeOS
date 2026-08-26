@@ -10,6 +10,7 @@ export class AuthService {
   static async login(email: string, password: string): Promise<AuthUser> {
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },
+      include: { role: true },
     });
 
     if (!user) {
@@ -35,7 +36,11 @@ export class AuthService {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role,
+      role: {
+        id: user.role.id,
+        name: user.role.name,
+        permissions: user.role.permissions,
+      },
       avatarUrl: user.avatarUrl,
     };
   }
@@ -47,13 +52,18 @@ export class AuthService {
   static async getById(id: string): Promise<AuthUser | null> {
     const user = await prisma.user.findFirst({
       where: { id, isActive: true, deletedAt: null },
+      include: { role: true },
     });
     if (!user) return null;
     return {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role,
+      role: {
+        id: user.role.id,
+        name: user.role.name,
+        permissions: user.role.permissions,
+      },
       avatarUrl: user.avatarUrl,
     };
   }

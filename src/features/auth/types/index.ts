@@ -2,7 +2,7 @@
 // Auth Feature — Types
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { UserRole } from "@prisma/client";
+import type { Permission } from "@prisma/client";
 
 /**
  * The minimal user payload stored inside the JWT.
@@ -12,7 +12,11 @@ export interface SessionUser {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
+  role: {
+    id: string;
+    name: string;
+    permissions: Permission[];
+  };
 }
 
 /**
@@ -31,6 +35,10 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
+  role: {
+    id: string;
+    name: string;
+    permissions: Permission[];
+  };
   avatarUrl: string | null;
 }
