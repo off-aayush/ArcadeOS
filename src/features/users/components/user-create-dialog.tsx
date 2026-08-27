@@ -62,7 +62,7 @@ export function UserCreateDialog({ isOpen, onClose }: Props) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md bg-surface-card border-surface-border text-white">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white">
             <UserPlus className="h-5 w-5 text-brand" />
@@ -132,10 +132,10 @@ export function UserCreateDialog({ isOpen, onClose }: Props) {
           </div>
 
           <DialogFooter className="pt-2">
-            <Button type="button" variant="ghost" onClick={handleClose} disabled={isPending}>
+            <Button type="button" variant="outline" className="bg-transparent border-surface-border hover:bg-surface text-white" onClick={handleClose} disabled={isPending}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" className="bg-brand hover:bg-brand-600 text-white font-semibold shadow-glow-brand" disabled={isPending}>
               {isPending ? "Creating…" : "Create User"}
             </Button>
           </DialogFooter>
