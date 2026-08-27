@@ -126,7 +126,7 @@ export function UserEditDialog({ user, isOpen, onClose, currentUserId }: Props) 
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md bg-surface-card border-surface-border text-white">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white">
             <Edit2 className="h-5 w-5 text-brand" />
@@ -233,11 +233,11 @@ export function UserEditDialog({ user, isOpen, onClose, currentUserId }: Props) 
               </div>
             </div>
 
-            <DialogFooter className="pt-4 border-t border-surface-border">
-              <Button type="button" variant="ghost" onClick={handleClose} disabled={isUpdating}>
+            <DialogFooter className="pt-4 border-t border-surface-border gap-2">
+              <Button type="button" variant="outline" className="bg-transparent border-surface-border hover:bg-surface text-white" onClick={handleClose} disabled={isUpdating}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isUpdating}>
+              <Button type="submit" className="bg-brand hover:bg-brand-600 text-white font-semibold shadow-glow-brand" disabled={isUpdating}>
                 {isUpdating ? "Saving…" : "Save Changes"}
               </Button>
             </DialogFooter>
@@ -334,7 +334,7 @@ export function UserEditDialog({ user, isOpen, onClose, currentUserId }: Props) 
             </div>
 
             <DialogFooter className="pt-2">
-              <Button type="button" variant="ghost" onClick={handleClose}>
+              <Button type="button" variant="outline" className="bg-transparent border-surface-border hover:bg-surface text-white" onClick={handleClose}>
                 Close
               </Button>
             </DialogFooter>
