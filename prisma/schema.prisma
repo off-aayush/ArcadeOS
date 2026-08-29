@@ -545,3 +545,28 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+/// Singleton parlour/business profile row.
+/// Always upserted with id = "singleton" so there is exactly one record.
+model ParlourProfile {
+  id              String   @id @default("singleton")
+  name            String   @default("My Arcade")
+  tagline         String?
+  phone           String?
+  email           String?
+  address         String?
+  city            String?
+  state           String?
+  pincode         String?
+  gstin           String?
+  receiptFooter   String?  // Printed at bottom of bills
+  logoUrl         String?
+  currencySymbol  String   @default("₹")
+  timezone        String   @default("Asia/Kolkata")
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("parlour_profile")
+}
+
