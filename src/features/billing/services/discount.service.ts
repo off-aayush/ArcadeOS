@@ -1,5 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { Discount, DiscountType, Prisma } from "@prisma/client";
+import { AuditLogService } from "@/features/audit-logs/services/audit.service";
+import { getAuthUser } from "@/lib/auth";
+
+async function getSystemUserId(): Promise<string> {
+  try {
+    const authUser = await getAuthUser();
+    if (authUser) return authUser.id;
+  } catch {
+    // Ignore context errors
+  }
+  const user = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
+  if (!user) throw new Error("No system user found. Please run the seed.");
+  return user.id;
+}
 
 export interface CreateDiscountInput {
   name: string;
@@ -54,7 +68,7 @@ export class DiscountService {
       if (existing) throw new Error("CODE_TAKEN");
     }
 
-    return prisma.discount.create({
+    const discount = await prisma.discount.create({
       data: {
         name: input.name.trim(),
         code: input.code?.trim().toUpperCase() || null,
@@ -67,6 +81,10 @@ export class DiscountService {
         isActive: input.isActive ?? true,
       },
     });
+
+    const actorId = await getSystemUserId();
+    await AuditLogService.log("CREATE", "Discount", discount.id, actorId, { name: discount.name, type: discount.type });
+    return discount;
   }
 
   /**
@@ -94,7 +112,12 @@ export class DiscountService {
     if (input.validUntil !== undefined) data.validUntil = input.validUntil ? new Date(input.validUntil) : null;
     if (input.isActive !== undefined) data.isActive = input.isActive;
 
-    return prisma.discount.update({ where: { id }, data });
+    const updated = await prisma.discount.update({ where: { id }, data });
+
+    const actorId = await getSystemUserId();
+    await AuditLogService.log("UPDATE", "Discount", id, actorId, { name: updated.name, fieldsUpdated: Object.keys(data) });
+
+    return updated;
   }
 
   /**
@@ -103,7 +126,12 @@ export class DiscountService {
   static async toggleActive(id: string): Promise<Discount> {
     const existing = await prisma.discount.findUnique({ where: { id } });
     if (!existing) throw new Error("NOT_FOUND");
-    return prisma.discount.update({ where: { id }, data: { isActive: !existing.isActive } });
+    const updated = await prisma.discount.update({ where: { id }, data: { isActive: !existing.isActive } });
+    
+    const actorId = await getSystemUserId();
+    await AuditLogService.log("UPDATE", "Discount", id, actorId, { name: updated.name, isActive: updated.isActive });
+
+    return updated;
   }
 
   /**
@@ -114,6 +142,9 @@ export class DiscountService {
     if (!existing) throw new Error("NOT_FOUND");
     if (existing.billItems.length > 0) throw new Error("IN_USE");
     await prisma.discount.delete({ where: { id } });
+
+    const actorId = await getSystemUserId();
+    await AuditLogService.log("DELETE", "Discount", id, actorId, { name: existing.name });
   }
 }
 

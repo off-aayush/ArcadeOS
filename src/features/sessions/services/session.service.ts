@@ -24,6 +24,7 @@ async function getSystemUserId(): Promise<string> {
 }
 
 import { emitSocketEvent } from "@/lib/socket-emitter";
+import { AuditLogService } from "@/features/audit-logs/services/audit.service";
 
 // --- Session include shape (reused across all queries) ---
 const SESSION_INCLUDE = {
@@ -151,6 +152,13 @@ export class SessionService {
     emitSocketEvent("invalidate_sessions");
     emitSocketEvent("invalidate_stations");
 
+    await AuditLogService.log("SESSION_START", "Session", session.id, actorId, {
+      stationId,
+      customerId,
+      playerCount,
+      ratePerHour: resolvedRatePerHour
+    });
+
     return session as SessionWithContext;
   }
 
@@ -169,6 +177,9 @@ export class SessionService {
     });
 
     emitSocketEvent("invalidate_sessions");
+
+    const actorId = await getSystemUserId();
+    await AuditLogService.log("SESSION_PAUSE", "Session", id, actorId);
 
     return updated as SessionWithContext;
   }
@@ -195,6 +206,11 @@ export class SessionService {
     });
 
     emitSocketEvent("invalidate_sessions");
+
+    const actorId = await getSystemUserId();
+    await AuditLogService.log("SESSION_RESUME", "Session", id, actorId, {
+      resumedAfterMs: additionalPausedMs
+    });
 
     return updated as SessionWithContext;
   }
@@ -246,6 +262,10 @@ export class SessionService {
     emitSocketEvent("invalidate_sessions");
     emitSocketEvent("invalidate_stations");
 
+    await AuditLogService.log("SESSION_STOP", "Session", id, actorId, {
+      finalPausedMs
+    });
+
     return updated as SessionWithContext;
   }
 
@@ -273,6 +293,9 @@ export class SessionService {
 
     emitSocketEvent("invalidate_sessions");
     emitSocketEvent("invalidate_stations");
+
+    const actorId = await getSystemUserId();
+    await AuditLogService.log("UPDATE", "Session", id, actorId, { status: "CANCELLED" });
 
     return updated as SessionWithContext;
   }

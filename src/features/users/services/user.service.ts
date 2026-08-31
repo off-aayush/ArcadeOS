@@ -8,6 +8,20 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { UserListItem } from "../types";
 import { CreateUserInput, UpdateUserInput } from "../validators";
+import { AuditLogService } from "@/features/audit-logs/services/audit.service";
+import { getAuthUser } from "@/lib/auth";
+
+async function getSystemUserId(): Promise<string> {
+  try {
+    const authUser = await getAuthUser();
+    if (authUser) return authUser.id;
+  } catch {
+    // Ignore context errors
+  }
+  const user = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
+  if (!user) throw new Error("No system user found. Please run the seed.");
+  return user.id;
+}
 
 const USER_INCLUDE = {
   role: {
@@ -69,6 +83,9 @@ export class UserService {
       include: USER_INCLUDE,
     });
 
+    const actorId = await getSystemUserId();
+    await AuditLogService.log("CREATE", "User", user.id, actorId, { email: user.email, roleId: user.roleId });
+
     return user;
   }
 
@@ -121,6 +138,9 @@ export class UserService {
       include: USER_INCLUDE,
     });
 
+    const actorId = await getSystemUserId();
+    await AuditLogService.log("UPDATE", "User", id, actorId, { fieldsUpdated: Object.keys(updateData) });
+
     return updated;
   }
 
@@ -138,6 +158,9 @@ export class UserService {
       where: { id: userId },
       data: { passwordHash },
     });
+
+    const actorId = await getSystemUserId();
+    await AuditLogService.log("UPDATE", "User", userId, actorId, { action: "CHANGE_PASSWORD" });
   }
 
   /**
@@ -167,6 +190,9 @@ export class UserService {
       where: { id },
       data: { deletedAt: new Date(), isActive: false },
     });
+
+    const actorId = await getSystemUserId();
+    await AuditLogService.log("DELETE", "User", id, actorId, { email: target.email });
   }
 
   /**

@@ -9,6 +9,7 @@ import {
 } from "@/lib/utils";
 import { DEFAULT_PAGE_SIZE, MIN_BILLABLE_MS } from "@/lib/constants";
 import { emitSocketEvent } from "@/lib/socket-emitter";
+import { AuditLogService } from "@/features/audit-logs/services/audit.service";
 
 // ── Shared include shape for full bill detail ─────────────────────────────────
 const BILL_DETAIL_INCLUDE = {
@@ -142,6 +143,9 @@ export class BillingService {
       });
 
       emitSocketEvent("invalidate_bills");
+      
+      await AuditLogService.log("BILL_GENERATED", "Bill", existingBillId, actorId, { grandTotal: Number(bill.grandTotal) });
+      
       return bill as BillWithDetails;
     }
 
@@ -196,6 +200,8 @@ export class BillingService {
       });
       return newBill;
     });
+
+    await AuditLogService.log("BILL_GENERATED", "Bill", bill.id, actorId, { grandTotal: Number(bill.grandTotal) });
 
     return bill as BillWithDetails;
   }
@@ -316,6 +322,8 @@ export class BillingService {
 
       return updatedBill;
     });
+
+    await AuditLogService.log("PAYMENT_RECEIVED", "Bill", billId, actorId, { amount: input.amount, method: input.method });
 
     return result as BillWithDetails;
   }
@@ -478,6 +486,12 @@ export class BillingService {
         where: { id: billId },
         include: BILL_DETAIL_INCLUDE,
       });
+    });
+
+    const actorId = await getSystemUserId();
+    await AuditLogService.log("DISCOUNT_APPLIED", "Bill", billId, actorId, { 
+      discountId: input.discountId, 
+      customAmount: input.customAmount 
     });
 
     return result as BillWithDetails;
