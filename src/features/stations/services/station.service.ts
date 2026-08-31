@@ -192,11 +192,24 @@ export class StationService {
     
     emitSocketEvent("invalidate_stations");
 
+    const changes: Record<string, { old: any, new: any }> = {};
+    for (const key of Object.keys(updateData)) {
+      const typedKey = key as keyof typeof updateData;
+      if (current[typedKey as keyof typeof current] !== updated[typedKey as keyof typeof updated]) {
+        changes[key] = {
+          old: current[typedKey as keyof typeof current],
+          new: updated[typedKey as keyof typeof updated]
+        };
+      }
+    }
+
+    if (pricings) {
+      changes["pricings"] = { old: "Previous Pricings", new: "Updated Pricings" };
+    }
+
     await AuditLogService.log("UPDATE", "Station", id, actorId, {
       name: updated.name,
-      previousStatus: current.status,
-      newStatus: updated.status,
-      fieldsUpdated: Object.keys(data).filter(k => k !== "pricings")
+      changes
     });
 
     return updated;
