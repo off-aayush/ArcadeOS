@@ -33,6 +33,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const actorId = request.headers.get("x-user-id");
     const { id } = await params;
     const body = await request.json();
     const parsed = stationUpdateSchema.safeParse(body);
@@ -44,7 +45,7 @@ export async function PATCH(
       );
     }
 
-    const station = await StationService.update(id, parsed.data as any);
+    const station = await StationService.update(id, parsed.data as any, actorId);
     return NextResponse.json(createSuccessResponse(station, "Station updated successfully"));
   } catch (error: any) {
     console.error(`API Error in PATCH /api/stations/[id]:`, error);
@@ -78,8 +79,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const actorId = request.headers.get("x-user-id");
     const { id } = await params;
-    const station = await StationService.delete(id);
+    const station = await StationService.delete(id, actorId);
     return NextResponse.json(createSuccessResponse(station, "Station deleted successfully"));
   } catch (error: any) {
     console.error(`API Error in DELETE /api/stations/[id]:`, error);

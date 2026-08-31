@@ -3,6 +3,7 @@ import { StationQueryParams, StationListItem } from "../types";
 import { DashboardStats } from "@/types";
 import { Prisma, Station } from "@prisma/client";
 import { emitSocketEvent } from "@/lib/socket-emitter";
+import { AuditLogService } from "@/features/audit-logs/services/audit.service";
 
 export class StationService {
   /**
@@ -105,7 +106,10 @@ export class StationService {
   /**
    * Creates a new station in the database.
    */
-  static async create(data: Omit<Prisma.StationCreateInput, "status"> & { pricings?: { playerCount: number; ratePerHour: number; ratePerMinute?: number | null }[] }): Promise<Station> {
+  static async create(
+    data: Omit<Prisma.StationCreateInput, "status"> & { pricings?: { playerCount: number; ratePerHour: number; ratePerMinute?: number | null }[] },
+    actorId: string | null = null
+  ): Promise<Station> {
     const { pricings, ...stationData } = data;
     
     const station = await prisma.$transaction(async (tx) => {
@@ -132,14 +136,22 @@ export class StationService {
       return newStation;
     });
 
+
     emitSocketEvent("invalidate_stations");
+    
+    await AuditLogService.log("CREATE", "Station", station.id, actorId, {
+      name: station.name,
+      type: station.type,
+      pricings: pricings?.length || 0
+    });
+    
     return station;
   }
 
   /**
    * Updates an existing station. Protects occupied stations from being set to maintenance or offline.
    */
-  static async update(id: string, data: Prisma.StationUpdateInput): Promise<Station> {
+  static async update(id: string, data: Prisma.StationUpdateInput, actorId: string | null = null): Promise<Station> {
     const current = await prisma.station.findUnique({
       where: { id },
       include: {
@@ -179,13 +191,34 @@ export class StationService {
     });
     
     emitSocketEvent("invalidate_stations");
+
+    const changes: Record<string, { old: any, new: any }> = {};
+    for (const key of Object.keys(updateData)) {
+      const typedKey = key as keyof typeof updateData;
+      if (current[typedKey as keyof typeof current] !== updated[typedKey as keyof typeof updated]) {
+        changes[key] = {
+          old: current[typedKey as keyof typeof current],
+          new: updated[typedKey as keyof typeof updated]
+        };
+      }
+    }
+
+    if (pricings) {
+      changes["pricings"] = { old: "Previous Pricings", new: "Updated Pricings" };
+    }
+
+    await AuditLogService.log("UPDATE", "Station", id, actorId, {
+      name: updated.name,
+      changes
+    });
+
     return updated;
   }
 
   /**
    * Performs soft deletion on a station to preserve historical session data.
    */
-  static async delete(id: string): Promise<Station> {
+  static async delete(id: string, actorId: string | null = null): Promise<Station> {
     const current = await prisma.station.findUnique({
       where: { id },
       include: {
@@ -211,6 +244,11 @@ export class StationService {
       },
     });
     emitSocketEvent("invalidate_stations");
+
+    await AuditLogService.log("DELETE", "Station", id, actorId, {
+      name: current.name
+    });
+
     return deleted;
   }
 
