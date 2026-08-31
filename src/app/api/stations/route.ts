@@ -33,9 +33,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const actorId = request.headers.get("x-user-id");
     const body = await request.json();
     const parsed = stationCreateSchema.safeParse(body);
-    
+
     if (!parsed.success) {
       return NextResponse.json(
         createErrorResponse((parsed.error as any).errors[0]?.message || "Invalid request body", "VALIDATION_ERROR"),
@@ -43,8 +44,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const station = await StationService.create(parsed.data);
-    return NextResponse.json(createSuccessResponse(station, "Station created successfully"), { status: 210 });
+    const newStation = await StationService.create(parsed.data, actorId);
+    return NextResponse.json(createSuccessResponse(newStation), { status: 201 });
   } catch (error: any) {
     console.error("API Error in POST /api/stations:", error);
     if (error.code === "P2002") {
