@@ -102,18 +102,18 @@ export class SessionService {
       throw new Error("Station already has an active session");
     }
 
-    if (!customerId) {
-      throw new Error("A customer must be selected to start a session");
-    }
+    // Walk-ins without customers are allowed, so we don't strictly throw here anymore.
 
     // Check if the customer already has an active session
-    const existingSession = await prisma.session.findFirst({
-      where: { customerId, status: { in: ["ACTIVE", "PAUSED"] } },
-      include: { station: { select: { name: true } } },
-    });
+    if (customerId) {
+      const existingSession = await prisma.session.findFirst({
+        where: { customerId, status: { in: ["ACTIVE", "PAUSED"] } },
+        include: { station: { select: { name: true } } },
+      });
 
-    if (existingSession) {
-      throw new Error(`Customer is already in an active session on ${existingSession.station.name}`);
+      if (existingSession) {
+        throw new Error(`Customer is already in an active session on ${existingSession.station.name}`);
+      }
     }
 
     if (playerCount < 1 || playerCount > station.maxPlayers) {
