@@ -123,7 +123,7 @@ export function CustomerCreateDialog({ isOpen, onClose, onSuccess }: CustomerCre
           <div className="grid grid-cols-2 gap-4">
             {/* Name */}
             <div className="col-span-2 space-y-1.5">
-              <Label className="text-sm font-medium text-surface-muted">Full Name *</Label>
+              <Label className="text-sm font-medium text-surface-muted">Full Name</Label>
               <Input
                 className="bg-surface border-surface-border text-white"
                 placeholder="e.g. Rahul Sharma"

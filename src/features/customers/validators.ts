@@ -2,12 +2,12 @@ import { z } from "zod";
 import { Gender } from "@prisma/client";
 
 export const customerCreateSchema = z.object({
-  name: z.string().min(1, "Name is required").max(100, "Name too long"),
-  phone: z.string().min(10, "Enter a valid phone number").max(15).optional().nullable(),
-  email: z.string().email("Enter a valid email").optional().nullable(),
-  gender: z.nativeEnum(Gender).optional().nullable(),
-  dateOfBirth: z.string().optional().nullable(), // ISO date string from input[type=date]
-  notes: z.string().max(500).optional().nullable(),
+  name: z.preprocess((val) => val === "" ? null : val, z.string().max(100, "Name too long").optional().nullable()),
+  phone: z.preprocess((val) => val === "" ? null : val, z.string().min(10, "Enter a valid phone number").max(15).optional().nullable()),
+  email: z.preprocess((val) => val === "" ? null : val, z.string().email("Enter a valid email").optional().nullable()),
+  gender: z.preprocess((val) => val === "" ? null : val, z.nativeEnum(Gender).optional().nullable()),
+  dateOfBirth: z.preprocess((val) => val === "" ? null : val, z.string().optional().nullable()), // ISO date string from input[type=date]
+  notes: z.preprocess((val) => val === "" ? null : val, z.string().max(500).optional().nullable()),
 });
 
 export const customerUpdateSchema = customerCreateSchema.partial().extend({

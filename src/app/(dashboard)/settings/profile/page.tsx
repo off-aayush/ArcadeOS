@@ -66,6 +66,8 @@ export default function ParlourProfilePage() {
     timezone: "Asia/Kolkata",
   });
 
+  const [showSuccess, setShowSuccess] = useState(false);
+
   useEffect(() => {
     if (profile) {
       setForm({
@@ -90,7 +92,7 @@ export default function ParlourProfilePage() {
 
   const handleSave = async () => {
     try {
-      await updateProfile({
+      const saved = await updateProfile({
         name: form.name.trim() || undefined,
         tagline: form.tagline.trim() || null,
         phone: form.phone.trim() || null,
@@ -104,9 +106,30 @@ export default function ParlourProfilePage() {
         currencySymbol: form.currencySymbol.trim() || undefined,
         timezone: form.timezone.trim() || undefined,
       });
-      toast.add({ title: "Saved", description: "Parlour profile updated successfully.", type: "success" });
+      // Sync form with persisted values from the server response
+      setForm({
+        name: saved.name || "",
+        tagline: saved.tagline || "",
+        phone: saved.phone || "",
+        email: saved.email || "",
+        address: saved.address || "",
+        city: saved.city || "",
+        state: saved.state || "",
+        pincode: saved.pincode || "",
+        gstin: saved.gstin || "",
+        receiptFooter: saved.receiptFooter || "",
+        currencySymbol: saved.currencySymbol || "₹",
+        timezone: saved.timezone || "Asia/Kolkata",
+      });
+      toast.add({
+        title: "Profile Saved",
+        description: `"${saved.name}" updated successfully.`,
+        type: "success",
+      });
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 5000); // hide after 5 seconds
     } catch (err: any) {
-      toast.add({ title: "Error", description: err.message || "Failed to save profile.", type: "error" });
+      toast.add({ title: "Save Failed", description: err.message || "Failed to save profile.", type: "error" });
     }
   };
 
@@ -127,15 +150,23 @@ export default function ParlourProfilePage() {
             Business information shown on invoices, receipts, and reports.
           </p>
         </div>
-        <Button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="bg-brand hover:bg-brand-600 text-white font-semibold shadow-glow-brand"
-        >
-          {isSaving ? (
-            <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving…</>
-          ) : "Save Changes"}
-        </Button>
+        <div className="flex items-center gap-3">
+          {showSuccess && (
+            <span className="text-sm font-semibold text-success animate-fade-in flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
+              Saved successfully
+            </span>
+          )}
+          <Button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="bg-brand hover:bg-brand-600 text-white font-semibold shadow-glow-brand"
+          >
+            {isSaving ? (
+              <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving…</>
+            ) : "Save Changes"}
+          </Button>
+        </div>
       </div>
 
       {/* Business Identity */}
@@ -283,7 +314,13 @@ export default function ParlourProfilePage() {
       </Section>
 
       {/* Sticky Save bar for mobile */}
-      <div className="flex justify-end pt-2 pb-8">
+      <div className="flex justify-end pt-2 pb-8 items-center gap-3">
+        {showSuccess && (
+          <span className="text-sm font-semibold text-success animate-fade-in flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
+            Saved successfully
+          </span>
+        )}
         <Button
           onClick={handleSave}
           disabled={isSaving}

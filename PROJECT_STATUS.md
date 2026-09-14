@@ -1,5 +1,5 @@
 ## Current Phase
-🔵 Phase 7 — Full Application Authorization Audit (Complete) / 🎉 All Phases Complete!
+🔵 Phase 9 — Billing + Parlour Profile Polish (Complete)
 
 ---
 
@@ -43,6 +43,12 @@ None. Application architecture and core features are completely built.
 
 ## Recently Completed
 
+- **Phase 9 — Billing + Parlour Profile Polish** — Fixed three interrelated issues:
+  1. **Invoice Print (multi-page bug):** Added `@media print` block to `globals.css` that hides everything except `#invoice-print-zone`. Print zone is reset to white background with black text. `@page` rule sets A4 portrait with sensible margins. Dialog footer/buttons marked `print:hidden`. Fixed root cause: `window.print()` was printing the entire dark-themed browser page.
+  2. **Parlour Profile → Invoice:** Connected existing `ParlourProfile` data to `BillDetailDialog`. Invoices now display business name, tagline, address, phone, email, GSTIN at the top and `receiptFooter` at the bottom. All fields have sensible fallbacks — invoices continue to work with empty profile fields.
+  3. **Profile Save UX:** `useUpdateParlourProfile` now sets the React Query cache directly with the server response (no re-fetch delay). `handleSave` on the profile page syncs local form state from the mutation result. Success toast shows `"<name>" updated successfully.` Error toast is now labelled "Save Failed".
+
+- **Phase 8 — Final Features & Polish** — Implemented server-side pagination across `CustomerTable`, `SessionTable`, `BillTable`, and `FoodTable`. Updated customer requirement logic to allow optional customers for walk-ins across session creation and billing. Added "Standalone Inventory Sale" feature to `BillingService` and UI to allow selling inventory without an active session. Implemented client-side `ActiveSessionNotifier` to toast warnings for sessions active for >1 hour.
 - **Phase 7 — Full Application Authorization Audit** — Completely refactored `middleware.ts` to implement a centralized, edge-level RBAC authorization matrix for ALL API routes instead of requiring explicit checks in every single route handler. This guarantees no unauthenticated/unauthorized data exposure across `stations`, `sessions`, `customers`, `bills`, `food`, `reports`, `dashboard`, `users`, `discounts`, and `audit-logs`.
 - **Phase 6 — Settings UI & Access Control** — Updated `SettingsLayout` to dynamically filter sidebar navigation tabs based on user permissions. Gated `/settings/*` page access at the Next.js Middleware edge. Updated `/settings` index to dynamically redirect to the first available authorized tab.
 - **Phase 5 — Parlour Profile** — Added `ParlourProfile` singleton model to Prisma schema (migration `20260829132727_parlour_profile`). Built `ParlourProfileService` with upsert pattern, `/api/parlour-profile` (GET public, PATCH requires `MANAGE_PARLOUR_PROFILE`), React Query hooks, and a rich 4-section Settings page (Business Identity, Contact, Address, Receipt & Billing). Zero TypeScript errors.

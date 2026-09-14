@@ -14,6 +14,7 @@ import {
   Users,
   RefreshCw,
   Eye,
+  ShoppingCart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -55,10 +56,20 @@ export function BillTable() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
 
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+
+  const handleStatusFilterChange = (val: string) => {
+    setStatusFilter(val);
+    setPage(1);
+  };
+
   const params = new URLSearchParams({ status: statusFilter });
+  params.set("page", page.toString());
+  params.set("pageSize", pageSize.toString());
 
   const { data, isLoading, isError, error, refetch } = useQuery<ApiResponse<ListResult>>({
-    queryKey: ["bills", statusFilter],
+    queryKey: ["bills", statusFilter, page],
     queryFn: async () => {
       const res = await fetch(`/api/bills?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to load bills");
@@ -89,7 +100,7 @@ export function BillTable() {
       <div className="flex items-center gap-3">
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => handleStatusFilterChange(e.target.value)}
           className="rounded-lg border border-surface-border bg-surface px-3 py-2 text-sm text-white focus:border-brand focus:outline-none"
         >
           <option value="ALL">All Statuses</option>
@@ -165,19 +176,28 @@ export function BillTable() {
                           {bill.billNumber}
                         </span>
                       </td>
-                      {/* Station */}
+                      {/* Station/Type */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
-                          <Gamepad2 className="h-3.5 w-3.5 text-brand shrink-0" />
-                          <span className="text-white">{bill.session.station.name}</span>
+                          {bill.session ? (
+                            <>
+                              <Gamepad2 className="h-3.5 w-3.5 text-brand shrink-0" />
+                              <span className="text-white">{bill.session.station.name}</span>
+                            </>
+                          ) : (
+                            <>
+                              <ShoppingCart className="h-3.5 w-3.5 text-brand shrink-0" />
+                              <span className="text-white">Inventory Sale</span>
+                            </>
+                          )}
                         </div>
                       </td>
                       {/* Customer */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
                           <Users className="h-3.5 w-3.5 text-surface-muted shrink-0" />
-                          <span className={cn(bill.session.customer ? "text-white" : "text-surface-muted italic")}>
-                            {bill.session.customer?.name ?? "Walk-in"}
+                          <span className={cn((bill.session?.customer || bill.customer) ? "text-white" : "text-surface-muted italic")}>
+                            {bill.session?.customer?.name ?? bill.customer?.name ?? "Walk-in"}
                           </span>
                         </div>
                       </td>
@@ -215,6 +235,30 @@ export function BillTable() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+        {/* Pagination Controls */}
+        {total > pageSize && (
+          <div className="px-4 py-3 border-t border-surface-border flex items-center justify-between text-sm text-surface-muted bg-surface-card/50">
+            <div>
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} bills
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+                className="px-3 py-1.5 rounded-lg border border-surface-border bg-surface hover:bg-surface-hover hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                Previous
+              </button>
+              <button
+                disabled={page * pageSize >= total}
+                onClick={() => setPage(p => p + 1)}
+                className="px-3 py-1.5 rounded-lg border border-surface-border bg-surface hover:bg-surface-hover hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>

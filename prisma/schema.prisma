@@ -234,7 +234,7 @@ model StationPricing {
 /// A customer can have multiple sessions and a membership.
 model Customer {
   id           String      @id @default(cuid())
-  name         String
+  name         String?
   phone        String?     @unique
   email        String?     @unique
   gender       Gender?
@@ -255,6 +255,7 @@ model Customer {
 
   // Relations
   sessions     Session[]
+  bills        Bill[]
   membership   Membership?
 
   @@index([phone])
@@ -316,8 +317,12 @@ model Bill {
   status         BillStatus @default(DRAFT)
 
   // Linked session (1-to-1)
-  sessionId      String     @unique
-  session        Session    @relation(fields: [sessionId], references: [id])
+  sessionId      String?    @unique
+  session        Session?   @relation(fields: [sessionId], references: [id])
+
+  // Linked customer (for standalone bills, or denormalized from session)
+  customerId     String?
+  customer       Customer?  @relation(fields: [customerId], references: [id])
 
   // Issued by
   issuedById     String

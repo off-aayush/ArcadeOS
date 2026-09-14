@@ -32,8 +32,9 @@ export function useUpdateParlourProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: updateProfile,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["parlour-profile"] });
+    onSuccess: (updatedProfile) => {
+      // Directly update the cache with the server-returned data — no re-fetch needed
+      qc.setQueryData(["parlour-profile"], updatedProfile);
     },
   });
 }

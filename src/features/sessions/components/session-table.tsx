@@ -28,13 +28,22 @@ function SessionRowSkeleton() {
 
 export function SessionTable() {
   const [status, setStatus] = useState<string>("ALL");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [billingSessionId, setBillingSessionId] = useState<string | null>(null);
 
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+
+  const handleStatusChange = (val: string) => {
+    setStatus(val);
+    setPage(1);
+  };
+
   const params = new URLSearchParams({ status });
-  
+  params.set("page", page.toString());
+  params.set("pageSize", pageSize.toString());
+
   const { data, isLoading, isError, error, refetch } = useQuery<ApiResponse<ListResult>>({
-    queryKey: ["sessions", status],
+    queryKey: ["sessions", status, page],
     queryFn: async () => {
       const res = await fetch(`${API_ROUTES.sessions}?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to load sessions");
@@ -52,7 +61,7 @@ export function SessionTable() {
       <div className="flex items-center gap-3">
         <select
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
+          onChange={(e) => handleStatusChange(e.target.value)}
           className="rounded-lg border border-surface-border bg-surface px-3 py-2 text-sm text-white focus:border-brand focus:outline-none"
         >
           <option value="ALL">All Statuses</option>
@@ -217,6 +226,31 @@ export function SessionTable() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {total > pageSize && (
+          <div className="px-4 py-3 border-t border-surface-border flex items-center justify-between text-sm text-surface-muted bg-surface-card/50">
+            <div>
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} sessions
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+                className="px-3 py-1.5 rounded-lg border border-surface-border bg-surface hover:bg-surface-hover hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                Previous
+              </button>
+              <button
+                disabled={page * pageSize >= total}
+                onClick={() => setPage(p => p + 1)}
+                className="px-3 py-1.5 rounded-lg border border-surface-border bg-surface hover:bg-surface-hover hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>

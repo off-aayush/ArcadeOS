@@ -146,7 +146,7 @@ export function StartSessionDialog({ station, isOpen, onClose }: StartSessionDia
 
           {/* Customer Search */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-surface-muted">Customer (required)</Label>
+            <Label className="text-sm font-medium text-surface-muted">Customer (optional)</Label>
 
             {selectedCustomer ? (
               <div className="flex items-center justify-between rounded-lg border border-success/40 bg-success/10 px-4 py-2.5">
@@ -323,7 +323,7 @@ export function StartSessionDialog({ station, isOpen, onClose }: StartSessionDia
           </Button>
           <Button
             onClick={handleStart}
-            disabled={isSubmitting || !selectedCustomer}
+            disabled={isSubmitting}
             className="bg-success hover:bg-success/80 text-white font-semibold"
           >
             {isSubmitting ? "Starting..." : "▶ Start Session"}

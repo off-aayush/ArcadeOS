@@ -71,14 +71,14 @@ export function CustomerEditDialog({ customer, isOpen, onClose }: CustomerEditDi
   useEffect(() => {
     if (customer) {
       reset({
-        name: customer.name,
-        phone: customer.phone || "",
-        email: customer.email || "",
-        gender: customer.gender || null,
+        name: customer.name ?? undefined,
+        phone: customer.phone ?? undefined,
+        email: customer.email ?? undefined,
+        gender: customer.gender ?? undefined,
         dateOfBirth: customer.dateOfBirth
           ? new Date(customer.dateOfBirth).toISOString().split("T")[0]
-          : "",
-        notes: customer.notes || "",
+          : undefined,
+        notes: customer.notes ?? undefined,
         isActive: customer.isActive,
       });
     }
@@ -128,7 +128,7 @@ export function CustomerEditDialog({ customer, isOpen, onClose }: CustomerEditDi
           <div className="grid grid-cols-2 gap-4">
             {/* Name */}
             <div className="col-span-2 space-y-1.5">
-              <Label className="text-sm font-medium text-surface-muted">Full Name *</Label>
+              <Label className="text-sm font-medium text-surface-muted">Full Name</Label>
               <Input
                 className="bg-surface border-surface-border text-white"
                 {...register("name")}

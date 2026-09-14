@@ -1,4 +1,5 @@
 import { BillTable } from "@/features/billing/components/bill-table";
+import { NewSaleButton } from "@/features/billing/components/new-sale-button";
 import { Receipt } from "lucide-react";
 
 export default function BillingPage() {
@@ -15,6 +16,7 @@ export default function BillingPage() {
             View and manage all invoices. Generate bills from the Sessions page.
           </p>
         </div>
+        <NewSaleButton />
       </div>
 
       {/* Bills Data Table */}
