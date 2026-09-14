@@ -25,9 +25,8 @@ const BILL_DETAIL_INCLUDE = {
       station: { select: { id: true, name: true, type: true } },
       customer: { select: { id: true, name: true, phone: true } },
     },
-    // We explicitly select everything plus the relations above to ensure playerCount is returned,
-    // actually Prisma include already selects all scalars.
   },
+  customer: { select: { id: true, name: true, phone: true } },
   issuedBy: { select: { id: true, name: true } },
 } satisfies Prisma.BillInclude;
 
@@ -39,6 +38,7 @@ const BILL_LIST_INCLUDE = {
       customer: { select: { id: true, name: true } },
     },
   },
+  customer: { select: { id: true, name: true } },
 } satisfies Prisma.BillInclude;
 
 import { getAuthUser } from "@/lib/auth";
@@ -229,6 +229,148 @@ export class BillingService {
     ]);
 
     return { bills: bills as unknown as BillListItem[], total };
+  }
+
+  /**
+   * Create a standalone inventory sale bill (no session required).
+   * Atomically deducts stock and creates the bill in a single transaction.
+   */
+  static async createStandaloneBill(input: {
+    customerId?: string | null;
+    items: { foodItemId: string; quantity: number }[];
+    discountId?: string | null;
+  }): Promise<BillWithDetails> {
+    const { customerId, items, discountId } = input;
+
+    if (!items || items.length === 0) {
+      throw new Error("At least one item is required for a standalone sale");
+    }
+
+    const actorId = await getSystemUserId();
+
+    const bill = await prisma.$transaction(async (tx) => {
+      // 1. Load and validate all food items
+      const foodItems = await tx.foodItem.findMany({
+        where: { id: { in: items.map((i) => i.foodItemId) }, deletedAt: null },
+      });
+
+      if (foodItems.length !== items.length) {
+        throw new Error("One or more inventory items not found or unavailable");
+      }
+
+      // 2. Validate quantities and stock
+      for (const item of items) {
+        const foodItem = foodItems.find((f) => f.id === item.foodItemId);
+        if (!foodItem) throw new Error(`Food item ${item.foodItemId} not found`);
+        if (item.quantity <= 0) throw new Error(`Quantity must be greater than 0 for ${foodItem.name}`);
+        if (foodItem.stock < item.quantity) {
+          throw new Error(`Insufficient stock for "${foodItem.name}". Available: ${foodItem.stock}, Requested: ${item.quantity}`);
+        }
+      }
+
+      // 3. Deduct stock atomically
+      for (const item of items) {
+        await tx.foodItem.update({
+          where: { id: item.foodItemId },
+          data: { stock: { decrement: item.quantity } },
+        });
+      }
+
+      // 4. Calculate subtotal from items
+      let subtotal = 0;
+      const billItemsData = items.map((item) => {
+        const foodItem = foodItems.find((f) => f.id === item.foodItemId)!;
+        const unitPrice = Number(foodItem.price);
+        const totalPrice = unitPrice * item.quantity;
+        subtotal += totalPrice;
+        return {
+          type: (foodItem.category === "BEVERAGES_HOT" || foodItem.category === "BEVERAGES_COLD") ? "DRINK" as const : "FOOD" as const,
+          description: foodItem.name,
+          quantity: item.quantity,
+          unitPrice,
+          totalPrice,
+          foodItemId: item.foodItemId,
+        };
+      });
+
+      // 5. Apply discount if provided
+      let discountAmount = 0;
+      let discountItemData: null | {
+        type: "DISCOUNT"; description: string; quantity: number;
+        unitPrice: number; totalPrice: number; discountId: string | null;
+      } = null;
+
+      if (discountId) {
+        const discount = await tx.discount.findUnique({ where: { id: discountId } });
+        if (discount && discount.isActive) {
+          if (discount.type === "PERCENTAGE") {
+            discountAmount = (subtotal * Number(discount.value)) / 100;
+            if (discount.maxAmount) discountAmount = Math.min(discountAmount, Number(discount.maxAmount));
+          } else {
+            discountAmount = Number(discount.value);
+          }
+          discountItemData = {
+            type: "DISCOUNT",
+            description: `Discount: ${discount.name}`,
+            quantity: 1,
+            unitPrice: -discountAmount,
+            totalPrice: -discountAmount,
+            discountId,
+          };
+        }
+      }
+
+      // 6. Calculate grand total with rounding
+      const preRoundTotal = subtotal - discountAmount;
+      const grandTotal = Math.max(0, roundBill(preRoundTotal));
+      const roundingAmount = getRoundingDiff(preRoundTotal);
+
+      // 7. Generate bill number
+      const sequence = await nextBillSequence();
+      const billNumber = generateBillNumber(sequence);
+
+      // 8. Create the bill
+      const allBillItems = [
+        ...billItemsData,
+        ...(discountItemData ? [discountItemData] : []),
+        ...(roundingAmount !== 0 ? [{
+          type: "ROUNDING" as const,
+          description: "Rounding adjustment",
+          quantity: 1,
+          unitPrice: roundingAmount,
+          totalPrice: roundingAmount,
+        }] : []),
+      ];
+
+      const newBill = await tx.bill.create({
+        data: {
+          billNumber,
+          status: "PENDING",
+          customerId: customerId || null,
+          issuedById: actorId,
+          subtotal,
+          discountTotal: discountAmount,
+          adjustmentTotal: 0,
+          roundingAmount,
+          grandTotal,
+          amountPaid: 0,
+          amountDue: grandTotal,
+          items: { create: allBillItems },
+        },
+        include: BILL_DETAIL_INCLUDE,
+      });
+
+      return newBill;
+    });
+
+    await AuditLogService.log("BILL_GENERATED", "Bill", bill.id, actorId, {
+      grandTotal: Number(bill.grandTotal),
+      standalone: true,
+      customerId: customerId ?? null,
+    });
+
+    emitSocketEvent("invalidate_bills");
+    return bill as BillWithDetails;
   }
 
   /**

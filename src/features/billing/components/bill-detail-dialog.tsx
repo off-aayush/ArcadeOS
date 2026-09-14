@@ -85,12 +85,12 @@ export function BillDetailDialog({
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
   const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
 
-  // Inline order item mutation — only available on DRAFT/PENDING bills
+  // For FOOD/DRINK items in a session-linked bill, we allow qty edit. For standalone bills (no session), editing is disabled to avoid double-deductions.
   const canEditOrderItems =
-    bill !== null && bill.status !== "PAID" && bill.status !== "VOIDED";
+    bill !== null && bill.session !== null && bill.status !== "PAID" && bill.status !== "VOIDED";
 
   const handleUpdateOrderQty = async (billItemId: string, newQty: number) => {
-    if (!bill) return;
+    if (!bill || !bill.session) return;
     const endpoint = API_ROUTES.orderItem(bill.session.id, billItemId);
     setLoadingItems((p) => ({ ...p, [billItemId]: true }));
     try {
@@ -200,6 +200,9 @@ export function BillDetailDialog({
 
   // ── Derived values ────────────────────────────────────────────────────────
   const session = bill?.session;
+  const isStandalone = bill !== null && !bill.session;
+  // Customer from session if session-linked, from bill.customer if standalone
+  const customer = session?.customer ?? bill?.customer;
   const durationMs = session?.endTime
     ? Math.max(
       new Date(session.endTime).getTime() -
@@ -243,38 +246,51 @@ export function BillDetailDialog({
               <BillStatusBadge status={bill.status} />
             </div>
 
-            {/* Session Context */}
+            {/* Session / Sale Context */}
             <div className="rounded-lg bg-surface p-4 border border-surface-border/50 space-y-3">
               <p className="text-xs font-semibold text-surface-muted uppercase tracking-wider">
-                Session Details
+                {isStandalone ? "Sale Details" : "Session Details"}
               </p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                {/* Station */}
-                <div className="flex items-center gap-2">
-                  <Gamepad2 className="h-4 w-4 text-brand shrink-0" />
-                  <div className="flex flex-col">
-                    <span className="text-xs text-surface-muted">Station</span>
-                    <span className="font-medium text-white">
-                      {session?.station.name}
-                    </span>
-                    <span className="text-xs text-surface-muted">
-                      {STATION_TYPE_LABELS[
-                        session?.station.type as keyof typeof STATION_TYPE_LABELS
-                      ] ?? session?.station.type}
-                    </span>
+                {/* Station (session-linked only) */}
+                {session && (
+                  <div className="flex items-center gap-2">
+                    <Gamepad2 className="h-4 w-4 text-brand shrink-0" />
+                    <div className="flex flex-col">
+                      <span className="text-xs text-surface-muted">Station</span>
+                      <span className="font-medium text-white">
+                        {session.station.name}
+                      </span>
+                      <span className="text-xs text-surface-muted">
+                        {STATION_TYPE_LABELS[
+                          session.station.type as keyof typeof STATION_TYPE_LABELS
+                        ] ?? session.station.type}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )}
+                {/* Standalone sale label */}
+                {isStandalone && (
+                  <div className="flex items-center gap-2">
+                    <ShoppingCart className="h-4 w-4 text-brand shrink-0" />
+                    <div className="flex flex-col">
+                      <span className="text-xs text-surface-muted">Type</span>
+                      <span className="font-medium text-white">Inventory Sale</span>
+                      <span className="text-xs text-surface-muted">No session required</span>
+                    </div>
+                  </div>
+                )}
                 {/* Customer */}
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-surface-muted shrink-0" />
                   <div className="flex flex-col">
                     <span className="text-xs text-surface-muted">Customer</span>
                     <span className="font-medium text-white">
-                      {session?.customer?.name ?? "Walk-in"}
+                      {customer?.name ?? "Walk-in"}
                     </span>
-                    {session?.customer?.phone && (
+                    {customer && "phone" in customer && (customer as any).phone && (
                       <span className="text-xs text-surface-muted">
-                        {session.customer.phone}
+                        {(customer as any).phone}
                       </span>
                     )}
                   </div>
@@ -289,31 +305,35 @@ export function BillDetailDialog({
                     </span>
                   </div>
                 </div>
-                {/* Duration */}
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-surface-muted shrink-0" />
-                  <div className="flex flex-col">
-                    <span className="text-xs text-surface-muted">Duration</span>
-                    <span className="font-mono font-medium text-white">
-                      {formatDuration(durationMs)}
-                    </span>
-                    {(session?.totalPausedMs ?? 0) > 0 && (
-                      <span className="text-xs text-warning/80">
-                        ({formatDuration(session!.totalPausedMs)} paused)
+                {/* Duration (session-linked only) */}
+                {session && (
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-surface-muted shrink-0" />
+                    <div className="flex flex-col">
+                      <span className="text-xs text-surface-muted">Duration</span>
+                      <span className="font-mono font-medium text-white">
+                        {formatDuration(durationMs)}
                       </span>
-                    )}
+                      {(session.totalPausedMs ?? 0) > 0 && (
+                        <span className="text-xs text-warning/80">
+                          ({formatDuration(session.totalPausedMs)} paused)
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-                {/* Players */}
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-surface-muted shrink-0" />
-                  <div className="flex flex-col">
-                    <span className="text-xs text-surface-muted">Players</span>
-                    <span className="font-medium text-white">
-                      {session?.playerCount ?? 1} {(session?.playerCount ?? 1) === 1 ? 'Player' : 'Players'}
-                    </span>
+                )}
+                {/* Players (session-linked only) */}
+                {session && (
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-surface-muted shrink-0" />
+                    <div className="flex flex-col">
+                      <span className="text-xs text-surface-muted">Players</span>
+                      <span className="font-medium text-white">
+                        {session.playerCount ?? 1} {(session.playerCount ?? 1) === 1 ? 'Player' : 'Players'}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -567,7 +587,7 @@ export function BillDetailDialog({
       )}
 
       {/* Order Dialog */}
-      {bill && (
+      {bill && bill.session && (
         <OrderDialog
           sessionId={bill.session.id}
           sessionLabel={bill.session.customer?.name ?? bill.session.station.name}

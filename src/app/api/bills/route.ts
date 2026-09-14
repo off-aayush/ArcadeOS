@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BillingService } from "@/features/billing/services/billing.service";
-import { generateBillSchema, billQuerySchema } from "@/features/billing/validators";
+import { generateBillSchema, billQuerySchema, standaloneSaleSchema } from "@/features/billing/validators";
 import { createSuccessResponse, createErrorResponse } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
@@ -31,14 +31,25 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const parsed = generateBillSchema.safeParse(body);
 
+    // Route A: Standalone inventory sale (has items array)
+    if (Array.isArray(body.items)) {
+      const parsed = standaloneSaleSchema.safeParse(body);
+      if (!parsed.success) {
+        return NextResponse.json(
+          createErrorResponse(parsed.error.issues[0]?.message || "Invalid request body", "VALIDATION_ERROR"),
+          { status: 400 }
+        );
+      }
+      const bill = await BillingService.createStandaloneBill(parsed.data);
+      return NextResponse.json(createSuccessResponse(bill, "Standalone bill created successfully"), { status: 201 });
+    }
+
+    // Route B: Session bill generation
+    const parsed = generateBillSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        createErrorResponse(
-          parsed.error.issues[0]?.message || "Invalid request body",
-          "VALIDATION_ERROR"
-        ),
+        createErrorResponse(parsed.error.issues[0]?.message || "Invalid request body", "VALIDATION_ERROR"),
         { status: 400 }
       );
     }
@@ -54,7 +65,9 @@ export async function POST(request: NextRequest) {
       error.message?.includes("not found") ||
       error.message?.includes("already exists") ||
       error.message?.includes("only") ||
-      error.message?.includes("COMPLETED");
+      error.message?.includes("COMPLETED") ||
+      error.message?.includes("Insufficient") ||
+      error.message?.includes("required");
     return NextResponse.json(
       createErrorResponse(error.message || "Internal server error"),
       { status: isClientError ? 400 : 500 }

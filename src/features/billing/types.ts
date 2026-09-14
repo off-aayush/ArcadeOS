@@ -9,10 +9,11 @@ export type BillItemWithRefs = BillItem & {
 export type BillWithDetails = Bill & {
   items: BillItemWithRefs[];
   payments: Payment[];
-  session: Session & {
+  session: (Session & {
     station: Pick<Station, "id" | "name" | "type">;
     customer: Pick<Customer, "id" | "name" | "phone"> | null;
-  };
+  }) | null;
+  customer: Pick<Customer, "id" | "name" | "phone"> | null;
   issuedBy: Pick<User, "id" | "name">;
 };
 
@@ -21,7 +22,8 @@ export type BillListItem = Pick<Bill, "id" | "billNumber" | "status" | "grandTot
   session: {
     station: Pick<Station, "id" | "name">;
     customer: Pick<Customer, "id" | "name"> | null;
-  };
+  } | null;
+  customer: Pick<Customer, "id" | "name"> | null;
 };
 
 // ── Input types ───────────────────────────────────────────────────────────────
