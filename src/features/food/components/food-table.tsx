@@ -22,18 +22,36 @@ export function FoodTable() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isAdjustOpen, setIsAdjustOpen] = useState(false);
 
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+
   // Debounce search
   const handleSearchChange = (val: string) => {
     setSearch(val);
     clearTimeout((handleSearchChange as any)._t);
-    (handleSearchChange as any)._t = setTimeout(() => setDebouncedSearch(val), 350);
+    (handleSearchChange as any)._t = setTimeout(() => {
+      setDebouncedSearch(val);
+      setPage(1);
+    }, 350);
+  };
+
+  const handleCategoryChange = (val: string) => {
+    setCategory(val);
+    setPage(1);
+  };
+
+  const handleInStockChange = (val: string) => {
+    setInStock(val);
+    setPage(1);
   };
 
   const params = new URLSearchParams({ category, inStock });
   if (debouncedSearch) params.set("search", debouncedSearch);
+  params.set("page", page.toString());
+  params.set("pageSize", pageSize.toString());
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["food", category, inStock, debouncedSearch],
+    queryKey: ["food", category, inStock, debouncedSearch, page],
     queryFn: async () => {
       const res = await fetch(`/api/food?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to load inventory");
@@ -60,7 +78,7 @@ export function FoodTable() {
 
         <select
           value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          onChange={(e) => handleCategoryChange(e.target.value)}
           className="rounded-lg border border-surface-border bg-surface px-3 py-2 text-sm text-white focus:border-brand focus:outline-none"
         >
           <option value="ALL">All Categories</option>
@@ -69,7 +87,7 @@ export function FoodTable() {
 
         <select
           value={inStock}
-          onChange={(e) => setInStock(e.target.value)}
+          onChange={(e) => handleInStockChange(e.target.value)}
           className="rounded-lg border border-surface-border bg-surface px-3 py-2 text-sm text-white focus:border-brand focus:outline-none"
         >
           <option value="ALL">All Stock Levels</option>
@@ -168,6 +186,30 @@ export function FoodTable() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+        {/* Pagination Controls */}
+        {total > pageSize && (
+          <div className="px-4 py-3 border-t border-surface-border flex items-center justify-between text-sm text-surface-muted bg-surface-card/50">
+            <div>
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} products
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+                className="px-3 py-1.5 rounded-lg border border-surface-border bg-surface hover:bg-surface-hover hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                Previous
+              </button>
+              <button
+                disabled={page * pageSize >= total}
+                onClick={() => setPage(p => p + 1)}
+                className="px-3 py-1.5 rounded-lg border border-surface-border bg-surface hover:bg-surface-hover hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>

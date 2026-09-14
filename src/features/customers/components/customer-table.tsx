@@ -35,18 +35,26 @@ export function CustomerTable({ onEdit }: CustomerTableProps) {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+
   // Simple debounce
   const handleSearchChange = (val: string) => {
     setSearch(val);
     clearTimeout((handleSearchChange as any)._timer);
-    (handleSearchChange as any)._timer = setTimeout(() => setDebouncedSearch(val), 400);
+    (handleSearchChange as any)._timer = setTimeout(() => {
+      setDebouncedSearch(val);
+      setPage(1);
+    }, 400);
   };
 
   const params = new URLSearchParams({ status: "active" });
   if (debouncedSearch) params.set("search", debouncedSearch);
+  params.set("page", page.toString());
+  params.set("pageSize", pageSize.toString());
 
   const { data, isLoading, isError, error, refetch } = useQuery<ApiResponse<ListResult>>({
-    queryKey: ["customers", debouncedSearch],
+    queryKey: ["customers", debouncedSearch, page],
     queryFn: async () => {
       const res = await fetch(`${API_ROUTES.customers}?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to load customers");
@@ -150,9 +158,9 @@ export function CustomerTable({ onEdit }: CustomerTableProps) {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand/20 text-brand text-xs font-bold">
-                              {customer.name.charAt(0).toUpperCase()}
+                              {customer.name ? customer.name.charAt(0).toUpperCase() : "G"}
                             </div>
-                            <span className="font-medium text-white">{customer.name}</span>
+                            <span className="font-medium text-white">{customer.name || "Guest"}</span>
                           </div>
                         </td>
                         {/* Contact */}
@@ -213,7 +221,7 @@ export function CustomerTable({ onEdit }: CustomerTableProps) {
                               </button>
                             )}
                             <button
-                              onClick={() => handleDelete(customer.id, customer.name)}
+                              onClick={() => handleDelete(customer.id, customer.name || "Guest")}
                               disabled={deletingId === customer.id}
                               className="rounded-lg p-1.5 text-surface-muted hover:bg-danger/20 hover:text-danger transition-colors disabled:opacity-50"
                               title="Delete Customer"
@@ -228,6 +236,30 @@ export function CustomerTable({ onEdit }: CustomerTableProps) {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+        {/* Pagination Controls */}
+        {total > pageSize && (
+          <div className="px-4 py-3 border-t border-surface-border flex items-center justify-between text-sm text-surface-muted bg-surface-card/50">
+            <div>
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} customers
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+                className="px-3 py-1.5 rounded-lg border border-surface-border bg-surface hover:bg-surface-hover hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                Previous
+              </button>
+              <button
+                disabled={page * pageSize >= total}
+                onClick={() => setPage(p => p + 1)}
+                className="px-3 py-1.5 rounded-lg border border-surface-border bg-surface hover:bg-surface-hover hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>
