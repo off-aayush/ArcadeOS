@@ -32,6 +32,9 @@ import {
   Minus,
   Plus,
   Trash2,
+  Phone,
+  Mail,
+  MapPin,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PaymentDialog } from "./payment-dialog";
@@ -40,6 +43,7 @@ import { AddAdjustmentDialog } from "./add-adjustment-dialog";
 import { Tag, SlidersHorizontal, ShoppingCart } from "lucide-react";
 import { API_ROUTES } from "@/lib/constants";
 import { OrderDialog } from "@/features/sessions/components/order-dialog";
+import { useParlourProfile } from "@/features/parlour-profile/hooks/use-parlour-profile";
 
 interface BillDetailDialogProps {
   /** Pass a sessionId to trigger "generate then show" flow */
@@ -77,6 +81,7 @@ export function BillDetailDialog({
   onClose,
 }: BillDetailDialogProps) {
   const queryClient = useQueryClient();
+  const { data: profile } = useParlourProfile();
   const [bill, setBill] = useState<BillWithDetails | null>(initialBill ?? null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
@@ -196,7 +201,73 @@ export function BillDetailDialog({
     }
   };
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    const printContent = document.getElementById("invoice-print-zone")?.innerHTML;
+    if (!printContent) return;
+
+    // Create a hidden iframe for perfectly isolated printing
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0px";
+    iframe.style.height = "0px";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    // Copy Tailwind stylesheets from the parent document
+    const styles = Array.from(document.querySelectorAll("style, link[rel='stylesheet']"))
+      .map(node => node.outerHTML)
+      .join("");
+
+    doc.open();
+    doc.write(`
+      <html>
+        <head>
+          <title>Invoice - ${bill?.billNumber || ""}</title>
+          ${styles}
+          <style>
+            /* Reset dark mode to white paper */
+            body { 
+              background: white !important; 
+              color: black !important; 
+              padding: 24px; 
+              font-family: "Inter", system-ui, -apple-system, sans-serif;
+            }
+            /* Override Tailwind dark classes */
+            .text-white { color: black !important; }
+            .bg-surface, .bg-surface-card { background-color: white !important; }
+            .border-surface-border, .border-b, .border-t { border-color: #e5e7eb !important; }
+            .text-surface-muted { color: #6b7280 !important; }
+            .text-brand { color: #4f46e5 !important; }
+            .bg-surface\\/50 { background-color: transparent !important; }
+            /* Hide print:hidden elements explicitly */
+            .print\\:hidden { display: none !important; }
+            /* Strip max heights and scrollbars to allow natural pagination */
+            * {
+               max-height: none !important;
+               overflow: visible !important;
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent}
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    // Give it a brief moment to process the DOM and styles, then print
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      // Clean up iframe after print dialog resolves
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+    }, 250);
+  };
 
   // ── Derived values ────────────────────────────────────────────────────────
   const session = bill?.session;
@@ -215,7 +286,7 @@ export function BillDetailDialog({
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[700px] bg-surface-card border-surface-border text-white p-0 gap-0 overflow-hidden">
-        <DialogHeader className="p-5 pb-4 border-b border-surface-border bg-surface/50">
+        <DialogHeader className="print:hidden p-5 pb-4 border-b border-surface-border bg-surface/50">
           <DialogTitle className="flex items-center gap-2 text-xl font-bold tracking-tight">
             <Receipt className="h-5 w-5 text-brand" />
             Invoice
@@ -232,7 +303,48 @@ export function BillDetailDialog({
 
         {/* ── Bill content ──────────────────────────────────────────────── */}
         {!isGenerating && bill && (
-          <div className="space-y-5 p-5 max-h-[70vh] overflow-y-auto">
+          <div id="invoice-print-zone" className="space-y-5 p-5 max-h-[70vh] overflow-y-auto">
+
+            {/* ── Business Header (Parlour Profile) ─────────────────────── */}
+            <div className="border-b border-surface-border pb-4 text-center space-y-0.5">
+              <h1 className="text-lg font-bold text-white tracking-tight">
+                {profile?.name ?? "My Arcade"}
+              </h1>
+              {profile?.tagline && (
+                <p className="text-xs text-surface-muted italic">{profile.tagline}</p>
+              )}
+              {/* Address line */}
+              {(profile?.address || profile?.city || profile?.state || profile?.pincode) && (
+                <p className="text-xs text-surface-muted flex items-center justify-center gap-1 flex-wrap">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  {[profile?.address, profile?.city, profile?.state, profile?.pincode]
+                    .filter(Boolean)
+                    .join(", ")}
+                </p>
+              )}
+              {/* Contact line */}
+              {(profile?.phone || profile?.email) && (
+                <p className="text-xs text-surface-muted flex items-center justify-center gap-3 flex-wrap">
+                  {profile?.phone && (
+                    <span className="flex items-center gap-1">
+                      <Phone className="h-3 w-3" />{profile.phone}
+                    </span>
+                  )}
+                  {profile?.email && (
+                    <span className="flex items-center gap-1">
+                      <Mail className="h-3 w-3" />{profile.email}
+                    </span>
+                  )}
+                </p>
+              )}
+              {/* GSTIN */}
+              {profile?.gstin && (
+                <p className="text-xs text-surface-muted font-mono">
+                  GSTIN: {profile.gstin}
+                </p>
+              )}
+            </div>
+
             {/* Bill header */}
             <div className="flex items-start justify-between">
               <div>
@@ -483,10 +595,18 @@ export function BillDetailDialog({
                 <span className="font-bold text-success">PAID IN FULL</span>
               </div>
             )}
+
+            {/* ── Receipt Footer (Parlour Profile) ─────────────────────── */}
+            {profile?.receiptFooter && (
+              <div className="border-t border-surface-border pt-3 text-center">
+                <p className="text-xs text-surface-muted whitespace-pre-line">{profile.receiptFooter}</p>
+              </div>
+            )}
+
           </div>
         )}
 
-        <DialogFooter className=" m-1 p-4 border-t border-surface-border bg-surface/50 gap-2 sm:justify-between">
+        <DialogFooter className="print:hidden m-1 p-4 border-t border-surface-border bg-surface/50 gap-2 sm:justify-between">
           <Button
             variant="outline"
             onClick={onClose}
