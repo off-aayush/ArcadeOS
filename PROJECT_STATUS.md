@@ -59,7 +59,12 @@ None. Application architecture and core features are completely built.
   - **Backend:** Updated `BillingService.addAdjustment` to calculate `finalDescription` cleanly and store `manualAdjustmentType`. Updated validators to require descriptions when `OTHERS` is selected.
   - **Reports API:** Updated `ReportService` to aggregate manual adjustments by counting totals for credits, charges, and category-level breakdown without using a new date scheme.
   - **UI/Billing:** Updated `AddAdjustmentDialog` to include the new Category dropdown and conditionally enforce the description requirement for `OTHERS`.
-  - **UI/Reports:** Appended a dedicated "Manual Adjustments Summary" and "Adjustments by Category" row to `ReportsDashboard`, reusing the existing date filters and data structures.
+  - **UI/Reports:** 
+    - Appended a dedicated "Manual Adjustments Summary" and "Adjustments by Category" row to `ReportsDashboard`, reusing the existing date filters and data structures.
+    - Redesigned Manual Adjustments into a single compact card with exactly 3 switchable tabs (Summary, Categories, Breakdown).
+    - Replaced the large list with a dynamically rendered Pie/Doughnut Chart for category totals, fully equipped with a custom tooltip displaying amount/count.
+    - Fixed a bug where Recharts Pie Charts failed to render due to zero-height constraints (`min-h-0` inside a flex child without intrinsic height). Implemented hard boundaries (e.g. `min-h-[250px]`) allowing charts to properly initialize responsive bounds.
+    - Restored natural page scrolling for the Reports page by removing overly restrictive absolute viewport clamps, ensuring responsive layouts function as intended across breakpoints.
 
 ## Pending
 

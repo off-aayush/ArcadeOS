@@ -22,6 +22,7 @@ import { format, startOfMonth, endOfMonth } from "date-fns";
 const PIE_COLORS = ["#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#6366f1", "#ef4444", "#06b6d4"];
 
 type PieView = "station" | "inventory";
+type AdjTab = "summary" | "categories" | "breakdown";
 
 function toInputDate(d: Date) {
   return format(d, "yyyy-MM-dd");
@@ -36,6 +37,7 @@ export function ReportsDashboard() {
   });
   const { startDate, endDate } = range;
   const [pieView, setPieView] = useState<PieView>("station");
+  const [adjTab, setAdjTab] = useState<AdjTab>("summary");
 
   const dateRangeInvalid = startDate && endDate && startDate > endDate;
 
@@ -148,10 +150,10 @@ export function ReportsDashboard() {
           <p className="text-sm">{error.message}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 flex-1 min-h-0">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
 
           {/* Revenue Trend Bar Chart — 2/3 width */}
-          <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6 lg:col-span-2 min-h-0">
+          <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6 lg:col-span-2 min-h-[350px]">
             <h3 className="mb-5 text-base font-bold text-white tracking-tight shrink-0">Revenue Trend</h3>
             {isLoading ? (
               <div className="flex-1 flex items-center justify-center">
@@ -162,7 +164,7 @@ export function ReportsDashboard() {
                 No revenue data for this period.
               </div>
             ) : (
-              <div className="w-full flex-1 min-h-0">
+              <div className="w-full flex-1 min-h-[250px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={reportData.revenueChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
@@ -188,7 +190,7 @@ export function ReportsDashboard() {
           </div>
 
           {/* Revenue Breakdown Pie Chart — 1/3 width */}
-          <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6 min-h-0">
+          <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6 min-h-[350px]">
             <div className="flex items-center justify-between mb-4 shrink-0">
               <h3 className="text-base font-bold text-white tracking-tight">
                 {pieView === "station" ? "Revenue by Station" : "Revenue by Inventory"}
@@ -222,7 +224,7 @@ export function ReportsDashboard() {
             ) : (
               <>
                 {/* Pie chart — fills the remaining vertical space */}
-                <div className="flex-1 min-h-0">
+                <div className="flex-1 min-h-[200px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -271,59 +273,165 @@ export function ReportsDashboard() {
 
       {/* ── Manual Adjustments Row ─────────────────────────────────────────────── */}
       {!error && !isLoading && reportData && (
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 shrink-0">
-          {/* Summary Stats for Manual Adjustments */}
-          <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6">
-            <h3 className="mb-5 text-base font-bold text-white tracking-tight shrink-0">Manual Adjustments Summary</h3>
-            <div className="grid grid-cols-2 gap-4 flex-1">
-              <div>
-                <p className="text-[10px] font-semibold text-surface-muted uppercase tracking-wider">Total Credits</p>
-                <p className="text-lg font-bold text-success">{formatCurrency(reportData.manualAdjustments.totalCredits)}</p>
-                <p className="text-xs text-surface-muted">{reportData.manualAdjustments.creditCount} count</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-semibold text-surface-muted uppercase tracking-wider">Total Charges</p>
-                <p className="text-lg font-bold text-warning">{formatCurrency(reportData.manualAdjustments.totalCharges)}</p>
-                <p className="text-xs text-surface-muted">{reportData.manualAdjustments.chargeCount} count</p>
-              </div>
-              <div className="col-span-2 pt-2 border-t border-surface-border">
-                <p className="text-[10px] font-semibold text-surface-muted uppercase tracking-wider">Net Adjustment</p>
-                <p className={`text-xl font-bold ${reportData.manualAdjustments.netAdjustment >= 0 ? "text-success" : "text-warning"}`}>
-                  {reportData.manualAdjustments.netAdjustment >= 0 ? "+" : ""}{formatCurrency(reportData.manualAdjustments.netAdjustment)}
-                </p>
-                <p className="text-xs text-surface-muted">{reportData.manualAdjustments.totalCount} total adjustments</p>
-              </div>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+          <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6 min-h-[350px]">
+            <div className="flex items-center justify-between mb-4 shrink-0">
+              <h3 className="text-base font-bold text-white tracking-tight">Manual Adjustments</h3>
             </div>
-          </div>
+            
+            {/* Toggle */}
+            <div className="flex rounded-lg border border-surface-border bg-surface p-1 gap-1 mb-4 shrink-0">
+              {(["summary", "categories", "breakdown"] as AdjTab[]).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setAdjTab(tab)}
+                  className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all capitalize ${
+                    adjTab === tab ? "bg-brand text-white shadow-sm" : "text-surface-muted hover:text-white"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
 
-          {/* Category Breakdown */}
-          <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6 lg:col-span-2">
-            <h3 className="mb-5 text-base font-bold text-white tracking-tight shrink-0">Adjustments by Category</h3>
-            {reportData.manualAdjustments.totalCount === 0 ? (
-              <div className="flex flex-1 items-center justify-center text-surface-muted text-sm">
-                No manual adjustments for this period.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {reportData.manualAdjustments.byCategory.map((cat) => (
-                  <div key={cat.category} className="bg-surface/50 rounded-lg p-3 border border-surface-border">
-                    <p className="text-sm font-semibold text-white mb-2">{cat.label}</p>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-surface-muted">Credits:</span>
-                      <span className="text-success font-medium">{formatCurrency(cat.creditAmount)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs mt-1">
-                      <span className="text-surface-muted">Charges:</span>
-                      <span className="text-warning font-medium">{formatCurrency(cat.chargeAmount)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs mt-1 pt-1 border-t border-surface-border/50">
-                      <span className="text-surface-muted">Count:</span>
-                      <span className="text-white">{cat.count}</span>
-                    </div>
+            <div className="flex-1 flex flex-col min-h-0">
+              {adjTab === "summary" && (
+                <div className="grid grid-cols-2 gap-4 flex-1 content-start mt-2">
+                  <div>
+                    <p className="text-[10px] font-semibold text-surface-muted uppercase tracking-wider">Total Credits</p>
+                    <p className="text-lg font-bold text-success">{formatCurrency(reportData.manualAdjustments.totalCredits)}</p>
+                    <p className="text-xs text-surface-muted">{reportData.manualAdjustments.creditCount} count</p>
                   </div>
-                ))}
-              </div>
-            )}
+                  <div>
+                    <p className="text-[10px] font-semibold text-surface-muted uppercase tracking-wider">Total Charges</p>
+                    <p className="text-lg font-bold text-warning">{formatCurrency(reportData.manualAdjustments.totalCharges)}</p>
+                    <p className="text-xs text-surface-muted">{reportData.manualAdjustments.chargeCount} count</p>
+                  </div>
+                  <div className="col-span-2 pt-4 border-t border-surface-border/50">
+                    <p className="text-[10px] font-semibold text-surface-muted uppercase tracking-wider">Net Adjustment</p>
+                    <p className={`text-xl font-bold ${reportData.manualAdjustments.netAdjustment >= 0 ? "text-success" : "text-warning"}`}>
+                      {reportData.manualAdjustments.netAdjustment >= 0 ? "+" : ""}{formatCurrency(reportData.manualAdjustments.netAdjustment)}
+                    </p>
+                    <p className="text-xs text-surface-muted">{reportData.manualAdjustments.totalCount} total adjustments</p>
+                  </div>
+                </div>
+              )}
+
+              {adjTab === "categories" && (
+                <div className="flex-1 flex flex-col min-h-0">
+                  {reportData.manualAdjustments.totalCount === 0 ? (
+                    <div className="flex flex-1 items-center justify-center text-surface-muted text-sm text-center px-4">
+                      No manual adjustments for this period.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex-1 min-h-[200px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={reportData.manualAdjustments.byCategory.map(c => ({
+                                name: c.label,
+                                value: c.creditAmount + c.chargeAmount,
+                                creditAmount: c.creditAmount,
+                                chargeAmount: c.chargeAmount,
+                                count: c.count
+                              })).filter(c => c.value > 0)}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={45}
+                              outerRadius={80}
+                              paddingAngle={2}
+                              stroke="none"
+                              cornerRadius={4}
+                              dataKey="value"
+                              nameKey="name"
+                              isAnimationActive={true}
+                            >
+                              {reportData.manualAdjustments.byCategory.map((_, index) => (
+                                <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <RechartsTooltip
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  const data = payload[0].payload;
+                                  return (
+                                    <div className="bg-[#0f1115] border border-[#1f2229] p-3 rounded-lg shadow-lg min-w-[150px]">
+                                      <p className="font-semibold text-white mb-2">{data.name}</p>
+                                      <div className="flex flex-col gap-1.5 text-xs text-surface-muted">
+                                        <div className="flex justify-between gap-4">
+                                          <span>Total:</span>
+                                          <span className="text-white font-medium">{formatCurrency(data.value)}</span>
+                                        </div>
+                                        <div className="flex justify-between gap-4">
+                                          <span>Credits:</span>
+                                          <span className="text-success">{formatCurrency(data.creditAmount)}</span>
+                                        </div>
+                                        <div className="flex justify-between gap-4">
+                                          <span>Charges:</span>
+                                          <span className="text-warning">{formatCurrency(data.chargeAmount)}</span>
+                                        </div>
+                                        <div className="flex justify-between gap-4 pt-1.5 mt-0.5 border-t border-surface-border/50">
+                                          <span>Count:</span>
+                                          <span className="text-white">{data.count}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1.5 shrink-0">
+                        {reportData.manualAdjustments.byCategory
+                          .filter(c => (c.creditAmount + c.chargeAmount) > 0)
+                          .map((entry, index) => (
+                            <div key={entry.category} className="flex items-center gap-1.5 text-[11px] text-surface-muted">
+                              <span
+                                className="h-2 w-2 rounded-full shrink-0"
+                                style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
+                              />
+                              <span className="truncate max-w-[72px]" title={entry.label}>{entry.label}</span>
+                              <span className="text-white font-medium">{formatCurrency(entry.creditAmount + entry.chargeAmount)}</span>
+                            </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {adjTab === "breakdown" && (
+                <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-3 mt-2 custom-scrollbar">
+                  {reportData.manualAdjustments.totalCount === 0 ? (
+                    <div className="flex h-full items-center justify-center text-surface-muted text-sm text-center px-4">
+                      No manual adjustments for this period.
+                    </div>
+                  ) : (
+                    reportData.manualAdjustments.byCategory.filter(c => c.count > 0).map((cat) => (
+                      <div key={cat.category} className="bg-surface/50 rounded-lg p-3 border border-surface-border">
+                        <p className="text-sm font-semibold text-white mb-2">{cat.label}</p>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-surface-muted">Credits:</span>
+                          <span className="text-success font-medium">{formatCurrency(cat.creditAmount)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs mt-1">
+                          <span className="text-surface-muted">Charges:</span>
+                          <span className="text-warning font-medium">{formatCurrency(cat.chargeAmount)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs mt-1 pt-1 border-t border-surface-border/50">
+                          <span className="text-surface-muted">Count:</span>
+                          <span className="text-white">{cat.count}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
