@@ -53,7 +53,17 @@ None. Application architecture and core features are completely built.
 - **Phase 6 — Settings UI & Access Control** — Updated `SettingsLayout` to dynamically filter sidebar navigation tabs based on user permissions. Gated `/settings/*` page access at the Next.js Middleware edge. Updated `/settings` index to dynamically redirect to the first available authorized tab.
 - **Phase 5 — Parlour Profile** — Added `ParlourProfile` singleton model to Prisma schema (migration `20260829132727_parlour_profile`). Built `ParlourProfileService` with upsert pattern, `/api/parlour-profile` (GET public, PATCH requires `MANAGE_PARLOUR_PROFILE`), React Query hooks, and a rich 4-section Settings page (Business Identity, Contact, Address, Receipt & Billing). Zero TypeScript errors.
 
-- **Phase 10 — Manual Adjustments Feature**
+- **Phase 10b — Reports Page Layout Polish**
+  - **Root Cause of broken pie charts:** `ResponsiveContainer` inside a flex child with `min-h-0` computed to `height: 0px`, causing Recharts to skip rendering entirely. Fixed by replacing all `flex-1 min-h-0` chart containers with explicit `style={{ height: N }}` values.
+  - **Natural page scroll:** Removed `h-[calc(100vh-100px)]` fixed viewport height from `reports/page.tsx`. Page now scrolls naturally when content exceeds the viewport.
+  - **Layout restructured to 2-row design:**
+    - Row 1: Revenue Trend — spans full content width.
+    - Row 2: `lg:grid-cols-2` — Revenue by Station/Inventory on the left, Manual Adjustments on the right.
+  - **Manual Adjustments redesigned** into a single compact tabbed card (Summary | Categories | Breakdown). The old "Adjustments by Category" separate card is removed.
+  - **Files changed:**
+    - `src/app/(dashboard)/reports/page.tsx` — removed viewport height clamp, added `pb-8` for scroll padding.
+    - `src/features/reports/components/reports-dashboard.tsx` — full layout rewrite; extracted `Spinner`, `EmptyState`, `PieLegend` sub-components; replaced `min-h-0` flex containers with `style={{ height: N }}`; moved pie charts to `lg:grid-cols-2` with Manual Adjustments.
+  - **Verification performed:** `npm run build` — zero TypeScript errors, compiled successfully.
   - **Schema:** Added `ManualAdjustmentType` enum (`ADJUSTMENTS`, `FRIENDS`, `ROUND_OFF`, `OTHERS`) and `manualAdjustmentType` column to `BillItem`.
   - **Migration:** Created `20260930193322_manual_adjustment_type` with safe SQL backfill parsing existing text descriptions to set the correct enum value for legacy records.
   - **Backend:** Updated `BillingService.addAdjustment` to calculate `finalDescription` cleanly and store `manualAdjustmentType`. Updated validators to require descriptions when `OTHERS` is selected.

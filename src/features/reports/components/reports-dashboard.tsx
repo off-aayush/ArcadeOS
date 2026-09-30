@@ -20,6 +20,7 @@ import {
 import { format, startOfMonth, endOfMonth } from "date-fns";
 
 const PIE_COLORS = ["#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#6366f1", "#ef4444", "#06b6d4"];
+const ADJ_COLORS = ["#8b5cf6", "#ec4899", "#f59e0b", "#10b981"];
 
 type PieView = "station" | "inventory";
 type AdjTab = "summary" | "categories" | "breakdown";
@@ -28,6 +29,63 @@ function toInputDate(d: Date) {
   return format(d, "yyyy-MM-dd");
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Reusable Spinner
+// ─────────────────────────────────────────────────────────────────────────────
+function Spinner() {
+  return (
+    <div className="flex flex-1 items-center justify-center py-12">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-surface-border border-t-brand" />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reusable Empty State
+// ─────────────────────────────────────────────────────────────────────────────
+function EmptyState({ label }: { label: string }) {
+  return (
+    <div className="flex flex-1 items-center justify-center text-surface-muted text-sm text-center px-4 py-12">
+      {label}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared pie legend
+// ─────────────────────────────────────────────────────────────────────────────
+function PieLegend({
+  items,
+  colors,
+  valueFormatter,
+}: {
+  items: { name: string; value: number }[];
+  colors: string[];
+  valueFormatter: (v: number) => string;
+}) {
+  const visible = items.filter((d) => d.value > 0);
+  if (!visible.length) return null;
+  return (
+    <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5">
+      {visible.map((entry, index) => (
+        <div key={entry.name} className="flex items-center gap-1.5 text-[11px] text-surface-muted">
+          <span
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ backgroundColor: colors[index % colors.length] }}
+          />
+          <span className="truncate max-w-[80px]" title={entry.name}>
+            {entry.name}
+          </span>
+          <span className="font-medium text-white">{valueFormatter(entry.value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Dashboard
+// ─────────────────────────────────────────────────────────────────────────────
 export function ReportsDashboard() {
   const now = new Date();
 
@@ -45,12 +103,23 @@ export function ReportsDashboard() {
     dateRangeInvalid ? {} : { startDate, endDate }
   );
 
-  const pieData =
+  // Revenue by station or inventory pie data
+  const revPieData =
     pieView === "station"
       ? (reportData?.stationRevenue ?? []).map((d) => ({ name: d.type, value: d.revenue }))
       : (reportData?.inventoryRevenue ?? []).map((d) => ({ name: d.name, value: d.revenue }));
+  const hasRevPieData = revPieData.some((d) => d.value > 0);
 
-  const hasPieData = pieData.some((d) => d.value > 0);
+  // Category pie data for manual adjustments
+  const adjPieData = (reportData?.manualAdjustments.byCategory ?? [])
+    .map((c) => ({
+      name: c.label,
+      value: c.creditAmount + c.chargeAmount,
+      creditAmount: c.creditAmount,
+      chargeAmount: c.chargeAmount,
+      count: c.count,
+    }))
+    .filter((c) => c.value > 0);
 
   const periodLabel =
     startDate && endDate
@@ -89,29 +158,27 @@ export function ReportsDashboard() {
   ];
 
   return (
-    <div className="flex flex-col flex-1 gap-5">
+    <div className="flex flex-col gap-5">
 
-      {/* ── Top Row: 4 Stats Cards + Date Filter Card ────────────────────────── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5 shrink-0">
-
-        {/* Stats cards */}
+      {/* ── Row 0: Summary Stats + Date Filter ──────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {statItems.map((item) => {
           const Icon = item.icon;
           return (
             <div
               key={item.label}
-              className="glass-card p-4 flex items-center justify-between border border-surface-border bg-surface-card/60"
+              className="glass-card flex items-center justify-between border border-surface-border bg-surface-card/60 p-4"
             >
-              <div className="space-y-0.5 min-w-0 flex-1 pr-2">
-                <p className="text-[10px] font-semibold text-surface-muted uppercase tracking-wider truncate">
+              <div className="min-w-0 flex-1 space-y-0.5 pr-2">
+                <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-surface-muted">
                   {item.label}
                 </p>
                 {isLoading ? (
                   <div className="h-6 w-20 animate-pulse rounded bg-surface-border" />
                 ) : (
-                  <p className="text-xl font-bold text-white tracking-tight truncate">{item.value}</p>
+                  <p className="truncate text-xl font-bold tracking-tight text-white">{item.value}</p>
                 )}
-                <p className="text-[10px] text-surface-muted truncate">{item.subtext}</p>
+                <p className="truncate text-[10px] text-surface-muted">{item.subtext}</p>
               </div>
               <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${item.color}`}>
                 <Icon className="h-5 w-5" />
@@ -121,16 +188,33 @@ export function ReportsDashboard() {
         })}
 
         {/* Date Filter Card */}
-        <div className="glass-card relative z-50 p-4 flex flex-col justify-between border border-surface-border bg-surface-card/60 gap-3">
+        <div className="glass-card relative z-50 flex flex-col justify-between gap-3 border border-surface-border bg-surface-card/60 p-4">
           <div>
-            <p className="text-[10px] font-semibold text-surface-muted uppercase tracking-wider mb-2">Date Range</p>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-surface-muted">Date Range</p>
             <DateRangePicker
               value={range}
               onChange={setRange}
               presets={[
-                { label: "This Month", range: () => ({ startDate: toInputDate(startOfMonth(now)), endDate: toInputDate(endOfMonth(now)) }) },
-                { label: "Last 7 Days", range: () => { const s = new Date(now); s.setDate(s.getDate() - 6); return { startDate: toInputDate(s), endDate: toInputDate(now) }; } },
-                { label: "Last 30 Days", range: () => { const s = new Date(now); s.setDate(s.getDate() - 29); return { startDate: toInputDate(s), endDate: toInputDate(now) }; } },
+                {
+                  label: "This Month",
+                  range: () => ({ startDate: toInputDate(startOfMonth(now)), endDate: toInputDate(endOfMonth(now)) }),
+                },
+                {
+                  label: "Last 7 Days",
+                  range: () => {
+                    const s = new Date(now);
+                    s.setDate(s.getDate() - 6);
+                    return { startDate: toInputDate(s), endDate: toInputDate(now) };
+                  },
+                },
+                {
+                  label: "Last 30 Days",
+                  range: () => {
+                    const s = new Date(now);
+                    s.setDate(s.getDate() - 29);
+                    return { startDate: toInputDate(s), endDate: toInputDate(now) };
+                  },
+                },
               ]}
             />
           </div>
@@ -143,203 +227,220 @@ export function ReportsDashboard() {
         </div>
       </div>
 
-      {/* ── Charts Row ─────────────────────────────────────────────────────────── */}
-      {error ? (
-        <div className=" relative z-0 h-64 flex-col items-center justify-center text-danger gap-2">
-          <AlertCircle className="h-6 w-6" />
+      {/* ── Error banner ────────────────────────────────────────────────────── */}
+      {error && (
+        <div className="flex items-center gap-3 rounded-xl border border-danger/30 bg-danger/10 p-4 text-danger">
+          <AlertCircle className="h-5 w-5 shrink-0" />
           <p className="text-sm">{error.message}</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-
-          {/* Revenue Trend Bar Chart — 2/3 width */}
-          <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6 lg:col-span-2 min-h-[350px]">
-            <h3 className="mb-5 text-base font-bold text-white tracking-tight shrink-0">Revenue Trend</h3>
-            {isLoading ? (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-surface-border border-t-brand" />
-              </div>
-            ) : !reportData?.revenueChart?.length ? (
-              <div className="flex flex-1 items-center justify-center text-surface-muted text-sm">
-                No revenue data for this period.
-              </div>
-            ) : (
-              <div className="w-full flex-1 min-h-[250px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={reportData.revenueChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                    <XAxis dataKey="date" stroke="#ffffff60" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis
-                      stroke="#ffffff60"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(val) => `₹${val}`}
-                    />
-                    <RechartsTooltip
-                      cursor={{ fill: "#ffffff05" }}
-                      contentStyle={{ backgroundColor: "#0f1115", borderColor: "#1f2229", borderRadius: "0.5rem", color: "#fff" }}
-                      itemStyle={{ color: "#fff" }}
-                      formatter={(value: any) => [formatCurrency(Number(value)), "Revenue"]}
-                    />
-                    <Bar dataKey="revenue" fill="#8b5cf6" radius={[4, 4, 0, 0]} maxBarSize={48} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-
-          {/* Revenue Breakdown Pie Chart — 1/3 width */}
-          <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6 min-h-[350px]">
-            <div className="flex items-center justify-between mb-4 shrink-0">
-              <h3 className="text-base font-bold text-white tracking-tight">
-                {pieView === "station" ? "Revenue by Station" : "Revenue by Inventory"}
-              </h3>
-            </div>
-
-            {/* Toggle */}
-            <div className="flex rounded-lg border border-surface-border bg-surface p-1 gap-1 mb-4 shrink-0">
-              {(["station", "inventory"] as PieView[]).map((view) => (
-                <button
-                  key={view}
-                  onClick={() => setPieView(view)}
-                  className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all ${pieView === view
-                    ? "bg-brand text-white shadow-sm"
-                    : "text-surface-muted hover:text-white"
-                    }`}
-                >
-                  {view === "station" ? "🎮 Station" : "🍔 Inventory"}
-                </button>
-              ))}
-            </div>
-
-            {isLoading ? (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-surface-border border-t-brand" />
-              </div>
-            ) : !hasPieData ? (
-              <div className="flex flex-1 items-center justify-center text-surface-muted text-sm text-center px-4">
-                No {pieView === "station" ? "gaming" : "inventory"} revenue for this period.
-              </div>
-            ) : (
-              <>
-                {/* Pie chart — fills the remaining vertical space */}
-                <div className="flex-1 min-h-[200px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={85}
-                        paddingAngle={2}
-                        stroke="none"
-                        cornerRadius={4}
-                        dataKey="value"
-                        nameKey="name"
-                        isAnimationActive={true}
-                      >
-                        {pieData.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <RechartsTooltip
-                        contentStyle={{ backgroundColor: "#0f1115", borderColor: "#1f2229", borderRadius: "0.5rem", color: "#fff" }}
-                        formatter={(value: any, name: any) => [formatCurrency(Number(value)), name]}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Legend below chart */}
-                <div className="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1.5 shrink-0">
-                  {pieData.filter((d) => d.value > 0).map((entry, index) => (
-                    <div key={entry.name} className="flex items-center gap-1.5 text-[11px] text-surface-muted">
-                      <span
-                        className="h-2 w-2 rounded-full shrink-0"
-                        style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
-                      />
-                      <span className="truncate max-w-[72px]" title={entry.name}>{entry.name}</span>
-                      <span className="text-white font-medium">{formatCurrency(entry.value)}</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
         </div>
       )}
 
-      {/* ── Manual Adjustments Row ─────────────────────────────────────────────── */}
-      {!error && !isLoading && reportData && (
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-          <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6 min-h-[350px]">
-            <div className="flex items-center justify-between mb-4 shrink-0">
-              <h3 className="text-base font-bold text-white tracking-tight">Manual Adjustments</h3>
-            </div>
-            
-            {/* Toggle */}
-            <div className="flex rounded-lg border border-surface-border bg-surface p-1 gap-1 mb-4 shrink-0">
-              {(["summary", "categories", "breakdown"] as AdjTab[]).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setAdjTab(tab)}
-                  className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all capitalize ${
-                    adjTab === tab ? "bg-brand text-white shadow-sm" : "text-surface-muted hover:text-white"
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
+      {/* ── Row 1: Revenue Trend — full width ───────────────────────────────── */}
+      <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6">
+        <h3 className="mb-5 shrink-0 text-base font-bold tracking-tight text-white">Revenue Trend</h3>
+        {isLoading ? (
+          <Spinner />
+        ) : !reportData?.revenueChart?.length ? (
+          <EmptyState label="No revenue data for this period." />
+        ) : (
+          <div style={{ height: 280 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={reportData.revenueChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                <XAxis dataKey="date" stroke="#ffffff60" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis
+                  stroke="#ffffff60"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(val) => `₹${val}`}
+                  width={60}
+                />
+                <RechartsTooltip
+                  cursor={{ fill: "#ffffff05" }}
+                  contentStyle={{
+                    backgroundColor: "#0f1115",
+                    borderColor: "#1f2229",
+                    borderRadius: "0.5rem",
+                    color: "#fff",
+                  }}
+                  itemStyle={{ color: "#fff" }}
+                  formatter={(value: any) => [formatCurrency(Number(value)), "Revenue"]}
+                />
+                <Bar dataKey="revenue" fill="#8b5cf6" radius={[4, 4, 0, 0]} maxBarSize={48} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
 
-            <div className="flex-1 flex flex-col min-h-0">
+      {/* ── Row 2: Revenue by Station/Inventory | Manual Adjustments ─────────── */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+
+        {/* ── LEFT: Revenue by Station / Inventory Pie ─────────────────────── */}
+        <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6">
+          {/* Header + toggle */}
+          <div className="mb-4 flex shrink-0 items-center justify-between">
+            <h3 className="text-base font-bold tracking-tight text-white">
+              {pieView === "station" ? "Revenue by Station" : "Revenue by Inventory"}
+            </h3>
+          </div>
+          <div className="mb-4 flex shrink-0 gap-1 rounded-lg border border-surface-border bg-surface p-1">
+            {(["station", "inventory"] as PieView[]).map((view) => (
+              <button
+                key={view}
+                onClick={() => setPieView(view)}
+                className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all ${
+                  pieView === view ? "bg-brand text-white shadow-sm" : "text-surface-muted hover:text-white"
+                }`}
+              >
+                {view === "station" ? "🎮 Station" : "🍔 Inventory"}
+              </button>
+            ))}
+          </div>
+
+          {/* Chart area */}
+          {isLoading ? (
+            <Spinner />
+          ) : !hasRevPieData ? (
+            <EmptyState
+              label={`No ${pieView === "station" ? "gaming" : "inventory"} revenue for this period.`}
+            />
+          ) : (
+            <div className="flex flex-col">
+              <div style={{ height: 240 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={revPieData.filter((d) => d.value > 0)}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={95}
+                      paddingAngle={2}
+                      stroke="none"
+                      cornerRadius={4}
+                      dataKey="value"
+                      nameKey="name"
+                      isAnimationActive={true}
+                    >
+                      {revPieData
+                        .filter((d) => d.value > 0)
+                        .map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        ))}
+                    </Pie>
+                    <RechartsTooltip
+                      contentStyle={{
+                        backgroundColor: "#0f1115",
+                        borderColor: "#1f2229",
+                        borderRadius: "0.5rem",
+                        color: "#fff",
+                      }}
+                      formatter={(value: any, name: any) => [formatCurrency(Number(value)), name]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <PieLegend
+                items={revPieData}
+                colors={PIE_COLORS}
+                valueFormatter={formatCurrency}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* ── RIGHT: Manual Adjustments (tabbed card) ──────────────────────── */}
+        <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6">
+          {/* Header */}
+          <div className="mb-4 shrink-0">
+            <h3 className="text-base font-bold tracking-tight text-white">Manual Adjustments</h3>
+          </div>
+
+          {/* Tab switcher */}
+          <div className="mb-4 flex shrink-0 gap-1 rounded-lg border border-surface-border bg-surface p-1">
+            {(["summary", "categories", "breakdown"] as AdjTab[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setAdjTab(tab)}
+                className={`flex-1 rounded-md py-1.5 text-xs font-semibold capitalize transition-all ${
+                  adjTab === tab ? "bg-brand text-white shadow-sm" : "text-surface-muted hover:text-white"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab content */}
+          {isLoading ? (
+            <Spinner />
+          ) : (
+            <div className="flex flex-1 flex-col">
+
+              {/* ── Summary ── */}
               {adjTab === "summary" && (
-                <div className="grid grid-cols-2 gap-4 flex-1 content-start mt-2">
-                  <div>
-                    <p className="text-[10px] font-semibold text-surface-muted uppercase tracking-wider">Total Credits</p>
-                    <p className="text-lg font-bold text-success">{formatCurrency(reportData.manualAdjustments.totalCredits)}</p>
-                    <p className="text-xs text-surface-muted">{reportData.manualAdjustments.creditCount} count</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-semibold text-surface-muted uppercase tracking-wider">Total Charges</p>
-                    <p className="text-lg font-bold text-warning">{formatCurrency(reportData.manualAdjustments.totalCharges)}</p>
-                    <p className="text-xs text-surface-muted">{reportData.manualAdjustments.chargeCount} count</p>
-                  </div>
-                  <div className="col-span-2 pt-4 border-t border-surface-border/50">
-                    <p className="text-[10px] font-semibold text-surface-muted uppercase tracking-wider">Net Adjustment</p>
-                    <p className={`text-xl font-bold ${reportData.manualAdjustments.netAdjustment >= 0 ? "text-success" : "text-warning"}`}>
-                      {reportData.manualAdjustments.netAdjustment >= 0 ? "+" : ""}{formatCurrency(reportData.manualAdjustments.netAdjustment)}
+                <div className="grid grid-cols-2 gap-5 py-2">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-surface-muted">
+                      Total Credits
                     </p>
-                    <p className="text-xs text-surface-muted">{reportData.manualAdjustments.totalCount} total adjustments</p>
+                    <p className="text-xl font-bold text-success">
+                      {formatCurrency(reportData?.manualAdjustments.totalCredits ?? 0)}
+                    </p>
+                    <p className="text-xs text-surface-muted">
+                      {reportData?.manualAdjustments.creditCount ?? 0} entries
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-surface-muted">
+                      Total Charges
+                    </p>
+                    <p className="text-xl font-bold text-warning">
+                      {formatCurrency(reportData?.manualAdjustments.totalCharges ?? 0)}
+                    </p>
+                    <p className="text-xs text-surface-muted">
+                      {reportData?.manualAdjustments.chargeCount ?? 0} entries
+                    </p>
+                  </div>
+                  <div className="col-span-2 space-y-1 border-t border-surface-border/50 pt-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-surface-muted">
+                      Net Adjustment
+                    </p>
+                    <p
+                      className={`text-2xl font-bold ${
+                        (reportData?.manualAdjustments.netAdjustment ?? 0) >= 0
+                          ? "text-success"
+                          : "text-warning"
+                      }`}
+                    >
+                      {(reportData?.manualAdjustments.netAdjustment ?? 0) >= 0 ? "+" : ""}
+                      {formatCurrency(reportData?.manualAdjustments.netAdjustment ?? 0)}
+                    </p>
+                    <p className="text-xs text-surface-muted">
+                      {reportData?.manualAdjustments.totalCount ?? 0} total adjustments
+                    </p>
                   </div>
                 </div>
               )}
 
+              {/* ── Categories pie chart ── */}
               {adjTab === "categories" && (
-                <div className="flex-1 flex flex-col min-h-0">
-                  {reportData.manualAdjustments.totalCount === 0 ? (
-                    <div className="flex flex-1 items-center justify-center text-surface-muted text-sm text-center px-4">
-                      No manual adjustments for this period.
-                    </div>
+                <>
+                  {!reportData || reportData.manualAdjustments.totalCount === 0 ? (
+                    <EmptyState label="No manual adjustments for this period." />
                   ) : (
-                    <>
-                      <div className="flex-1 min-h-[200px]">
+                    <div className="flex flex-col">
+                      <div style={{ height: 240 }}>
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
-                              data={reportData.manualAdjustments.byCategory.map(c => ({
-                                name: c.label,
-                                value: c.creditAmount + c.chargeAmount,
-                                creditAmount: c.creditAmount,
-                                chargeAmount: c.chargeAmount,
-                                count: c.count
-                              })).filter(c => c.value > 0)}
+                              data={adjPieData}
                               cx="50%"
                               cy="50%"
-                              innerRadius={45}
-                              outerRadius={80}
+                              innerRadius={55}
+                              outerRadius={95}
                               paddingAngle={2}
                               stroke="none"
                               cornerRadius={4}
@@ -347,33 +448,33 @@ export function ReportsDashboard() {
                               nameKey="name"
                               isAnimationActive={true}
                             >
-                              {reportData.manualAdjustments.byCategory.map((_, index) => (
-                                <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                              {adjPieData.map((_, index) => (
+                                <Cell key={`cell-${index}`} fill={ADJ_COLORS[index % ADJ_COLORS.length]} />
                               ))}
                             </Pie>
                             <RechartsTooltip
                               content={({ active, payload }) => {
                                 if (active && payload && payload.length) {
-                                  const data = payload[0].payload;
+                                  const d = payload[0].payload;
                                   return (
-                                    <div className="bg-[#0f1115] border border-[#1f2229] p-3 rounded-lg shadow-lg min-w-[150px]">
-                                      <p className="font-semibold text-white mb-2">{data.name}</p>
+                                    <div className="min-w-[160px] rounded-lg border border-[#1f2229] bg-[#0f1115] p-3 shadow-lg">
+                                      <p className="mb-2 font-semibold text-white">{d.name}</p>
                                       <div className="flex flex-col gap-1.5 text-xs text-surface-muted">
                                         <div className="flex justify-between gap-4">
                                           <span>Total:</span>
-                                          <span className="text-white font-medium">{formatCurrency(data.value)}</span>
+                                          <span className="font-medium text-white">{formatCurrency(d.value)}</span>
                                         </div>
                                         <div className="flex justify-between gap-4">
                                           <span>Credits:</span>
-                                          <span className="text-success">{formatCurrency(data.creditAmount)}</span>
+                                          <span className="text-success">{formatCurrency(d.creditAmount)}</span>
                                         </div>
                                         <div className="flex justify-between gap-4">
                                           <span>Charges:</span>
-                                          <span className="text-warning">{formatCurrency(data.chargeAmount)}</span>
+                                          <span className="text-warning">{formatCurrency(d.chargeAmount)}</span>
                                         </div>
-                                        <div className="flex justify-between gap-4 pt-1.5 mt-0.5 border-t border-surface-border/50">
+                                        <div className="flex justify-between gap-4 mt-0.5 border-t border-surface-border/50 pt-1.5">
                                           <span>Count:</span>
-                                          <span className="text-white">{data.count}</span>
+                                          <span className="text-white">{d.count}</span>
                                         </div>
                                       </div>
                                     </div>
@@ -385,56 +486,59 @@ export function ReportsDashboard() {
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
-                      <div className="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1.5 shrink-0">
-                        {reportData.manualAdjustments.byCategory
-                          .filter(c => (c.creditAmount + c.chargeAmount) > 0)
-                          .map((entry, index) => (
-                            <div key={entry.category} className="flex items-center gap-1.5 text-[11px] text-surface-muted">
-                              <span
-                                className="h-2 w-2 rounded-full shrink-0"
-                                style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
-                              />
-                              <span className="truncate max-w-[72px]" title={entry.label}>{entry.label}</span>
-                              <span className="text-white font-medium">{formatCurrency(entry.creditAmount + entry.chargeAmount)}</span>
-                            </div>
-                        ))}
-                      </div>
-                    </>
+                      <PieLegend
+                        items={adjPieData}
+                        colors={ADJ_COLORS}
+                        valueFormatter={formatCurrency}
+                      />
+                    </div>
                   )}
-                </div>
+                </>
               )}
 
+              {/* ── Breakdown list ── */}
               {adjTab === "breakdown" && (
-                <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-3 mt-2 custom-scrollbar">
-                  {reportData.manualAdjustments.totalCount === 0 ? (
-                    <div className="flex h-full items-center justify-center text-surface-muted text-sm text-center px-4">
-                      No manual adjustments for this period.
-                    </div>
+                <>
+                  {!reportData || reportData.manualAdjustments.totalCount === 0 ? (
+                    <EmptyState label="No manual adjustments for this period." />
                   ) : (
-                    reportData.manualAdjustments.byCategory.filter(c => c.count > 0).map((cat) => (
-                      <div key={cat.category} className="bg-surface/50 rounded-lg p-3 border border-surface-border">
-                        <p className="text-sm font-semibold text-white mb-2">{cat.label}</p>
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-surface-muted">Credits:</span>
-                          <span className="text-success font-medium">{formatCurrency(cat.creditAmount)}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-xs mt-1">
-                          <span className="text-surface-muted">Charges:</span>
-                          <span className="text-warning font-medium">{formatCurrency(cat.chargeAmount)}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-xs mt-1 pt-1 border-t border-surface-border/50">
-                          <span className="text-surface-muted">Count:</span>
-                          <span className="text-white">{cat.count}</span>
-                        </div>
-                      </div>
-                    ))
+                    <div className="space-y-3 py-2">
+                      {reportData.manualAdjustments.byCategory
+                        .filter((c) => c.count > 0)
+                        .map((cat, index) => (
+                          <div
+                            key={cat.category}
+                            className="rounded-lg border border-surface-border bg-surface/50 p-3"
+                          >
+                            <div className="mb-2 flex items-center gap-2">
+                              <span
+                                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                                style={{ backgroundColor: ADJ_COLORS[index % ADJ_COLORS.length] }}
+                              />
+                              <p className="text-sm font-semibold text-white">{cat.label}</p>
+                              <span className="ml-auto text-xs text-surface-muted">{cat.count} entries</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <span className="text-surface-muted">Credits: </span>
+                                <span className="font-medium text-success">{formatCurrency(cat.creditAmount)}</span>
+                              </div>
+                              <div>
+                                <span className="text-surface-muted">Charges: </span>
+                                <span className="font-medium text-warning">{formatCurrency(cat.chargeAmount)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
                   )}
-                </div>
+                </>
               )}
+
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
