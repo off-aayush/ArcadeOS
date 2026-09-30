@@ -53,6 +53,14 @@ None. Application architecture and core features are completely built.
 - **Phase 6 — Settings UI & Access Control** — Updated `SettingsLayout` to dynamically filter sidebar navigation tabs based on user permissions. Gated `/settings/*` page access at the Next.js Middleware edge. Updated `/settings` index to dynamically redirect to the first available authorized tab.
 - **Phase 5 — Parlour Profile** — Added `ParlourProfile` singleton model to Prisma schema (migration `20260829132727_parlour_profile`). Built `ParlourProfileService` with upsert pattern, `/api/parlour-profile` (GET public, PATCH requires `MANAGE_PARLOUR_PROFILE`), React Query hooks, and a rich 4-section Settings page (Business Identity, Contact, Address, Receipt & Billing). Zero TypeScript errors.
 
+- **Phase 10 — Manual Adjustments Feature**
+  - **Schema:** Added `ManualAdjustmentType` enum (`ADJUSTMENTS`, `FRIENDS`, `ROUND_OFF`, `OTHERS`) and `manualAdjustmentType` column to `BillItem`.
+  - **Migration:** Created `20260930193322_manual_adjustment_type` with safe SQL backfill parsing existing text descriptions to set the correct enum value for legacy records.
+  - **Backend:** Updated `BillingService.addAdjustment` to calculate `finalDescription` cleanly and store `manualAdjustmentType`. Updated validators to require descriptions when `OTHERS` is selected.
+  - **Reports API:** Updated `ReportService` to aggregate manual adjustments by counting totals for credits, charges, and category-level breakdown without using a new date scheme.
+  - **UI/Billing:** Updated `AddAdjustmentDialog` to include the new Category dropdown and conditionally enforce the description requirement for `OTHERS`.
+  - **UI/Reports:** Appended a dedicated "Manual Adjustments Summary" and "Adjustments by Category" row to `ReportsDashboard`, reusing the existing date filters and data structures.
+
 ## Pending
 
 - None! All planned phases for the ArcadeOS core architecture are complete.
@@ -67,19 +75,7 @@ None. Application architecture and core features are completely built.
 - 20260822072224_003_station_pricing
 - 20260824200306_rbac_foundation ← Adds `roles` table, `Permission` enum, migrates users
 - 20260829132727_parlour_profile ← Adds `parlour_profile` singleton table
-
----
-
-## Phase 6 & 7 Changes
-
-### Files Modified
-- `src/middleware.ts` — Implemented central RBAC map for `/api/*` routes and page gating for `/settings/*`.
-- `src/app/(dashboard)/settings/layout.tsx` — Conditionally render tabs based on `user.role.permissions`.
-- `src/app/(dashboard)/settings/page.tsx` — Server-side redirect to the first authorized settings page.
-
-### Verification Performed
-- ✅ `npm run type-check` — zero errors
-- ✅ Edge middleware correctly parses JWT and validates the requested path prefix against the required `Permission` array.
+- 20260930193322_manual_adjustment_type ← Adds Manual Adjustment categorization and backfill
 
 ---
 

@@ -76,6 +76,14 @@ enum BillItemType {
   ROUNDING       // rounding adjustment to nearest integer
 }
 
+/// Category for manual adjustments
+enum ManualAdjustmentType {
+  ADJUSTMENTS
+  FRIENDS
+  ROUND_OFF
+  OTHERS
+}
+
 /// How a discount is calculated
 enum DiscountType {
   PERCENTAGE   // e.g. 10%
@@ -375,6 +383,7 @@ model BillItem {
   foodItem    FoodItem?    @relation(fields: [foodItemId], references: [id])
   discountId  String?
   discount    Discount?    @relation(fields: [discountId], references: [id])
+  manualAdjustmentType ManualAdjustmentType?
 
   // Timestamps
   createdAt   DateTime     @default(now())

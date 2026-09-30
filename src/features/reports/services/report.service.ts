@@ -32,6 +32,7 @@ export class ReportService {
             type: true,
             description: true,
             totalPrice: true,
+            manualAdjustmentType: true,
           },
         },
         session: {
@@ -117,6 +118,48 @@ export class ReportService {
       .map(([name, revenue]) => ({ name, revenue }))
       .sort((a, b) => b.revenue - a.revenue);
 
+    // ── Manual Adjustments (MANUAL_CREDIT / MANUAL_CHARGE) ────────────────────
+    let totalCredits = 0;
+    let totalCharges = 0;
+    let creditCount = 0;
+    let chargeCount = 0;
+    let totalAdjustmentCount = 0;
+
+    const categories = ["ADJUSTMENTS", "FRIENDS", "ROUND_OFF", "OTHERS"] as const;
+    const categoryLabels: Record<string, string> = {
+      ADJUSTMENTS: "Adjustments",
+      FRIENDS: "Friends",
+      ROUND_OFF: "Round Off",
+      OTHERS: "Others"
+    };
+
+    const byCategoryMap = new Map(categories.map(c => [c, { category: c, label: categoryLabels[c], creditAmount: 0, chargeAmount: 0, count: 0 }]));
+
+    bills.forEach((b) => {
+      b.items.forEach((item) => {
+        if (item.type === "MANUAL_CREDIT" || item.type === "MANUAL_CHARGE") {
+          totalAdjustmentCount++;
+          const amount = Math.abs(Number(item.totalPrice));
+          
+          const catKey = (item.manualAdjustmentType as any) || "OTHERS";
+          const catData = byCategoryMap.get(catKey);
+
+          if (item.type === "MANUAL_CREDIT") {
+            totalCredits += amount;
+            creditCount++;
+            if (catData) catData.creditAmount += amount;
+          } else {
+            totalCharges += amount;
+            chargeCount++;
+            if (catData) catData.chargeAmount += amount;
+          }
+          if (catData) catData.count++;
+        }
+      });
+    });
+
+    const netAdjustment = totalCredits - totalCharges;
+
     return {
       summary: {
         totalRevenue,
@@ -127,6 +170,15 @@ export class ReportService {
       revenueChart,
       stationRevenue,
       inventoryRevenue,
+      manualAdjustments: {
+        totalCredits,
+        totalCharges,
+        netAdjustment,
+        creditCount,
+        chargeCount,
+        totalCount: totalAdjustmentCount,
+        byCategory: Array.from(byCategoryMap.values()),
+      },
     };
   }
 }

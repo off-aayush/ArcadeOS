@@ -653,11 +653,29 @@ export class BillingService {
       const isCredit = input.type === "MANUAL_CREDIT";
       const amount = Math.round(input.amount * 100) / 100;
 
+      // Format description based on category
+      const categoryLabels: Record<string, string> = {
+        ADJUSTMENTS: "Adjustments",
+        FRIENDS: "Friends",
+        ROUND_OFF: "Round Off",
+        OTHERS: "Others"
+      };
+      const categoryLabel = categoryLabels[input.category];
+      
+      let finalDescription = categoryLabel;
+      if (input.description && input.description.trim()) {
+        finalDescription += ` — ${input.description.trim()}`;
+      }
+      if (input.notes && input.notes.trim()) {
+        finalDescription += ` — ${input.notes.trim()}`;
+      }
+
       await tx.billItem.create({
         data: {
           billId,
           type: input.type,
-          description: input.notes ? `${input.description} — ${input.notes}` : input.description,
+          manualAdjustmentType: input.category,
+          description: finalDescription,
           quantity: 1,
           unitPrice: isCredit ? -amount : amount,
           totalPrice: isCredit ? -amount : amount,

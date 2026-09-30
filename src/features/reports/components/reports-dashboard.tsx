@@ -87,7 +87,7 @@ export function ReportsDashboard() {
   ];
 
   return (
-    <div className="flex flex-col flex-1 gap-5 min-h-0">
+    <div className="flex flex-col flex-1 gap-5">
 
       {/* ── Top Row: 4 Stats Cards + Date Filter Card ────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5 shrink-0">
@@ -264,6 +264,65 @@ export function ReportsDashboard() {
                   ))}
                 </div>
               </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Manual Adjustments Row ─────────────────────────────────────────────── */}
+      {!error && !isLoading && reportData && (
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 shrink-0">
+          {/* Summary Stats for Manual Adjustments */}
+          <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6">
+            <h3 className="mb-5 text-base font-bold text-white tracking-tight shrink-0">Manual Adjustments Summary</h3>
+            <div className="grid grid-cols-2 gap-4 flex-1">
+              <div>
+                <p className="text-[10px] font-semibold text-surface-muted uppercase tracking-wider">Total Credits</p>
+                <p className="text-lg font-bold text-success">{formatCurrency(reportData.manualAdjustments.totalCredits)}</p>
+                <p className="text-xs text-surface-muted">{reportData.manualAdjustments.creditCount} count</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-surface-muted uppercase tracking-wider">Total Charges</p>
+                <p className="text-lg font-bold text-warning">{formatCurrency(reportData.manualAdjustments.totalCharges)}</p>
+                <p className="text-xs text-surface-muted">{reportData.manualAdjustments.chargeCount} count</p>
+              </div>
+              <div className="col-span-2 pt-2 border-t border-surface-border">
+                <p className="text-[10px] font-semibold text-surface-muted uppercase tracking-wider">Net Adjustment</p>
+                <p className={`text-xl font-bold ${reportData.manualAdjustments.netAdjustment >= 0 ? "text-success" : "text-warning"}`}>
+                  {reportData.manualAdjustments.netAdjustment >= 0 ? "+" : ""}{formatCurrency(reportData.manualAdjustments.netAdjustment)}
+                </p>
+                <p className="text-xs text-surface-muted">{reportData.manualAdjustments.totalCount} total adjustments</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Category Breakdown */}
+          <div className="glass-card flex flex-col border border-surface-border bg-surface-card/60 p-6 lg:col-span-2">
+            <h3 className="mb-5 text-base font-bold text-white tracking-tight shrink-0">Adjustments by Category</h3>
+            {reportData.manualAdjustments.totalCount === 0 ? (
+              <div className="flex flex-1 items-center justify-center text-surface-muted text-sm">
+                No manual adjustments for this period.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {reportData.manualAdjustments.byCategory.map((cat) => (
+                  <div key={cat.category} className="bg-surface/50 rounded-lg p-3 border border-surface-border">
+                    <p className="text-sm font-semibold text-white mb-2">{cat.label}</p>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-surface-muted">Credits:</span>
+                      <span className="text-success font-medium">{formatCurrency(cat.creditAmount)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs mt-1">
+                      <span className="text-surface-muted">Charges:</span>
+                      <span className="text-warning font-medium">{formatCurrency(cat.chargeAmount)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs mt-1 pt-1 border-t border-surface-border/50">
+                      <span className="text-surface-muted">Count:</span>
+                      <span className="text-white">{cat.count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
