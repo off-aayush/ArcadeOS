@@ -67,9 +67,10 @@ None. Application architecture and core features are completely built.
   - **PS2 Station Type:** Added `PS2` to `StationType` Prisma enum (via migration `20261001114028_add_ps2_station_type`). Added to `STATION_TYPE_LABELS` in `constants.ts`. It correctly flows into station creation, editing, session logic, and reports.
   - **Dashboard Revenue Toggle:** Added a localized visibility toggle to the "Today's Revenue" card on the Dashboard. It defaults to hidden (`₹ ••••`) on every page load to protect privacy, and toggles to show the actual value when the eye icon is clicked.
   - **Reports Payment Mode Filter:** Added a Payment Mode dropdown (`ALL`, `UPI`, `CASH`, `CARD`, `WALLET`, `COMPLIMENTARY`) next to the Date Range filter in Reports.
+    - Added `paymentMode` to `ReportQueryParams` and correctly mapped it into `URLSearchParams` in the `useReports` frontend hook to ensure the filter actively reaches the backend API.
     - API and `ReportQueryParams` extended to accept `paymentMode`.
     - `ReportService.getDashboardReport` updated to proportionally attribute partial/multiple payments on a bill to Station Revenue, Inventory Revenue, Manual Adjustments, and Total Revenue when a specific mode is selected.
-    - Total Revenue, Revenue Trend, Station Pie Chart, Inventory Pie Chart, and Manual Adjustments all update consistently.
+    - Total Revenue, Revenue Trend, Station Pie Chart, Inventory Pie Chart, and Manual Adjustments all update consistently based on the actual recorded Prisma `Payment` values without double counting.
   - **Verification:** Prisma generated successfully, types checked, and `npm run build` completed with zero errors.
 
 ## Pending
