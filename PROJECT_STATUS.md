@@ -97,6 +97,10 @@ None. Application architecture and core features are completely built.
 
 ---
 
+- Walk-in Session → Bill Customer Attachment inline search UI integration.
+
+---
+
 ## Known Issues
 
 - None
