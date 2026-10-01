@@ -44,6 +44,7 @@ import { Tag, SlidersHorizontal, ShoppingCart } from "lucide-react";
 import { API_ROUTES } from "@/lib/constants";
 import { OrderDialog } from "@/features/sessions/components/order-dialog";
 import { useParlourProfile } from "@/features/parlour-profile/hooks/use-parlour-profile";
+import { AttachCustomerDialog } from "./attach-customer-dialog";
 
 interface BillDetailDialogProps {
   /** Pass a sessionId to trigger "generate then show" flow */
@@ -84,10 +85,12 @@ export function BillDetailDialog({
   const { data: profile } = useParlourProfile();
   const [bill, setBill] = useState<BillWithDetails | null>(initialBill ?? null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
   const [isAdjustmentDialogOpen, setIsAdjustmentDialogOpen] = useState(false);
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  const [isAttachCustomerOpen, setIsAttachCustomerOpen] = useState(false);
   const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
 
   // For FOOD/DRINK items in a session-linked bill, we allow qty edit. For standalone bills (no session), editing is disabled to avoid double-deductions.
@@ -149,6 +152,7 @@ export function BillDetailDialog({
   const handleGenerate = async () => {
     if (!sessionId) return;
     setIsGenerating(true);
+    setGenerateError(null);
     try {
       const res = await fetch("/api/bills", {
         method: "POST",
@@ -162,20 +166,21 @@ export function BillDetailDialog({
         );
       }
       setBill(data.data);
+      setGenerateError(null);
       // Invalidate sessions list so the bill column updates
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
       toast.add({
         title: "Invoice Generated",
         description: `Bill ${data.data.billNumber} created.`,
         type: "success",
       });
     } catch (err: any) {
-      toast.add({
-        title: "Error",
-        description: err.message,
-        type: "error",
-      });
-      onClose();
+      // Do NOT close the dialog on error — keep it open so the user can see
+      // what went wrong and retry if needed.
+      const msg = err.message || "Failed to generate invoice";
+      setGenerateError(msg);
+      console.error("[BillDetailDialog] Invoice generation failed:", msg);
     } finally {
       setIsGenerating(false);
     }
@@ -186,13 +191,16 @@ export function BillDetailDialog({
     if (isOpen) {
       if (initialBill) {
         setBill(initialBill);
-      } else if (sessionId && !bill && !isGenerating) {
+        setGenerateError(null);
+      } else if (sessionId && !bill) {
         handleGenerate();
       }
     } else {
-      // Reset state when closed
+      // Reset state when dialog closes
       setBill(null);
+      setGenerateError(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initialBill, sessionId]);
 
   const handleOpenChange = (open: boolean) => {
@@ -301,6 +309,26 @@ export function BillDetailDialog({
           </div>
         )}
 
+        {/* ── Error state ────────────────────────────────────────────────── */}
+        {!isGenerating && generateError && !bill && (
+          <div className="flex flex-col items-center justify-center py-12 gap-4 px-6">
+            <div className="rounded-full bg-danger/15 border border-danger/30 p-4">
+              <Receipt className="h-8 w-8 text-danger" />
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-sm font-semibold text-white">Invoice Generation Failed</p>
+              <p className="text-xs text-surface-muted max-w-sm">{generateError}</p>
+            </div>
+            <Button
+              onClick={handleGenerate}
+              className="bg-brand hover:bg-brand/80 text-white font-semibold gap-2"
+            >
+              <Loader2 className="h-4 w-4" />
+              Retry
+            </Button>
+          </div>
+        )}
+
         {/* ── Bill content ──────────────────────────────────────────────── */}
         {!isGenerating && bill && (
           <div id="invoice-print-zone" className="space-y-5 p-5 max-h-[70vh] overflow-y-auto">
@@ -397,13 +425,29 @@ export function BillDetailDialog({
                   <Users className="h-4 w-4 text-surface-muted shrink-0" />
                   <div className="flex flex-col">
                     <span className="text-xs text-surface-muted">Customer</span>
-                    <span className="font-medium text-white">
-                      {customer?.name ?? "Walk-in"}
-                    </span>
-                    {customer && "phone" in customer && (customer as any).phone && (
-                      <span className="text-xs text-surface-muted">
-                        {(customer as any).phone}
-                      </span>
+                    {customer ? (
+                      <>
+                        <span className="font-medium text-white">
+                          {customer.name}
+                        </span>
+                        {"phone" in customer && (customer as any).phone && (
+                          <span className="text-xs text-surface-muted">
+                            {(customer as any).phone}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="font-medium text-surface-muted">Walk-in</span>
+                        {bill && bill.status !== "PAID" && bill.status !== "VOIDED" && (
+                          <button
+                            onClick={() => setIsAttachCustomerOpen(true)}
+                            className="text-[10px] font-semibold text-brand hover:text-brand/80 bg-brand/10 hover:bg-brand/20 px-2 py-0.5 rounded-full transition-colors"
+                          >
+                            Attach
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -724,6 +768,21 @@ export function BillDetailDialog({
                 }
               })
               .catch(console.error);
+          }}
+        />
+      )}
+
+      {/* Attach Customer Dialog */}
+      {bill && !bill.customerId && (
+        <AttachCustomerDialog
+          bill={bill}
+          isOpen={isAttachCustomerOpen}
+          onClose={() => setIsAttachCustomerOpen(false)}
+          onSuccess={(updatedBill) => {
+            setBill(updatedBill);
+            queryClient.invalidateQueries({ queryKey: ["bills"] });
+            queryClient.invalidateQueries({ queryKey: ["sessions"] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard"] });
           }}
         />
       )}

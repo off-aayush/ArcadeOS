@@ -58,11 +58,25 @@ async function getSystemUserId(): Promise<string> {
 /** Derive the next sequence number for today's bills */
 async function nextBillSequence(): Promise<number> {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const count = await prisma.bill.count({
-    where: { createdAt: { gte: today } },
+  // Use local timezone for the bill prefix
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  const datePrefix = `${year}${month}${day}`;
+
+  const lastBill = await prisma.bill.findFirst({
+    where: { billNumber: { startsWith: `BILL-${datePrefix}-` } },
+    orderBy: { billNumber: "desc" },
   });
-  return count + 1;
+
+  if (!lastBill) return 1;
+
+  // Extract the sequence from BILL-YYYYMMDD-XXXX
+  const parts = lastBill.billNumber.split("-");
+  const seqStr = parts[parts.length - 1];
+  const lastSeq = parseInt(seqStr, 10);
+  
+  return isNaN(lastSeq) ? 1 : lastSeq + 1;
 }
 
 export class BillingService {
@@ -163,6 +177,7 @@ export class BillingService {
           billNumber,
           status: "PENDING",
           sessionId,
+          customerId: session.customerId,
           issuedById: actorId,
           subtotal: sessionCharge,
           discountTotal: 0,
@@ -979,5 +994,49 @@ export class BillingService {
       include: BILL_DETAIL_INCLUDE,
     });
     return bill as BillWithDetails | null;
+  }
+
+  /**
+   * Attach a customer to an existing Walk-in bill and its corresponding session.
+   */
+  static async attachCustomer(billId: string, customerId: string): Promise<BillWithDetails> {
+    const result = await prisma.$transaction(async (tx) => {
+      const bill = await tx.bill.findUnique({
+        where: { id: billId },
+        include: { session: true },
+      });
+
+      if (!bill) throw new Error("Bill not found");
+      if (bill.customerId || bill.session?.customerId) {
+        throw new Error("This bill/session already has a customer attached");
+      }
+      
+      const customer = await tx.customer.findUnique({ where: { id: customerId } });
+      if (!customer) throw new Error("Customer not found");
+
+      // Update Bill
+      await tx.bill.update({
+        where: { id: billId },
+        data: { customerId },
+      });
+
+      // Update Session if exists
+      if (bill.sessionId) {
+        await tx.session.update({
+          where: { id: bill.sessionId },
+          data: { customerId },
+        });
+      }
+
+      return tx.bill.findUniqueOrThrow({
+        where: { id: billId },
+        include: BILL_DETAIL_INCLUDE,
+      });
+    });
+
+    emitSocketEvent("invalidate_bills");
+    emitSocketEvent("invalidate_sessions");
+
+    return result as BillWithDetails;
   }
 }
