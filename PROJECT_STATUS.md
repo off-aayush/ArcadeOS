@@ -64,6 +64,12 @@ None. Application architecture and core features are completely built.
     - `src/app/(dashboard)/reports/page.tsx` — removed viewport height clamp, added `pb-8` for scroll padding.
     - `src/features/reports/components/reports-dashboard.tsx` — full layout rewrite; extracted `Spinner`, `EmptyState`, `PieLegend` sub-components; replaced `min-h-0` flex containers with `style={{ height: N }}`; moved pie charts to `lg:grid-cols-2` with Manual Adjustments.
 - **Phase 10c — Feature Additions & Polish**
+  - **Walk-in Customer Pipeline Fix:** Fixed the Walk-in Customer lifecycle.
+    - Walk-in sessions now generate bills properly when stopped.
+    - A new `AttachCustomerDialog` was created (`src/features/billing/components/attach-customer-dialog.tsx`) to allow attaching existing or newly-enrolled customers to an active bill directly from the `BillDetailDialog`.
+    - Added a new endpoint (`PATCH /api/bills/[id]/attach-customer`) that safely sets the `customerId` on both the Bill and its associated Session.
+    - Unattached walk-in bills can still proceed to payment normally.
+    - The schema handles `customerId` nullability perfectly; no DB migrations were required.
   - **PS2 Station Type:** Added `PS2` to `StationType` Prisma enum (via migration `20261001114028_add_ps2_station_type`). Added to `STATION_TYPE_LABELS` in `constants.ts`. It correctly flows into station creation, editing, session logic, and reports.
   - **Dashboard Revenue Toggle:** Added a localized visibility toggle to the "Today's Revenue" card on the Dashboard. It defaults to hidden (`₹ ••••`) on every page load to protect privacy, and toggles to show the actual value when the eye icon is clicked.
   - **Reports Payment Mode Filter:** Added a Payment Mode dropdown (`ALL`, `UPI`, `CASH`, `CARD`, `WALLET`, `COMPLIMENTARY`) next to the Date Range filter in Reports.
