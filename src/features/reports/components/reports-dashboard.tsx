@@ -94,13 +94,14 @@ export function ReportsDashboard() {
     endDate: toInputDate(endOfMonth(now)),
   });
   const { startDate, endDate } = range;
+  const [paymentMode, setPaymentMode] = useState<string>("ALL");
   const [pieView, setPieView] = useState<PieView>("station");
   const [adjTab, setAdjTab] = useState<AdjTab>("summary");
 
   const dateRangeInvalid = startDate && endDate && startDate > endDate;
 
   const { data: reportData, isLoading, error } = useReports(
-    dateRangeInvalid ? {} : { startDate, endDate }
+    dateRangeInvalid ? {} : { startDate, endDate, paymentMode }
   );
 
   // Revenue by station or inventory pie data
@@ -187,39 +188,57 @@ export function ReportsDashboard() {
           );
         })}
 
-        {/* Date Filter Card */}
-        <div className="glass-card relative z-50 flex flex-col justify-between gap-3 border border-surface-border bg-surface-card/60 p-4">
-          <div>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-surface-muted">Date Range</p>
-            <DateRangePicker
-              value={range}
-              onChange={setRange}
-              presets={[
-                {
-                  label: "This Month",
-                  range: () => ({ startDate: toInputDate(startOfMonth(now)), endDate: toInputDate(endOfMonth(now)) }),
-                },
-                {
-                  label: "Last 7 Days",
-                  range: () => {
-                    const s = new Date(now);
-                    s.setDate(s.getDate() - 6);
-                    return { startDate: toInputDate(s), endDate: toInputDate(now) };
+        {/* Filters Card */}
+        <div className="glass-card relative z-50 flex flex-col justify-between gap-3 border border-surface-border bg-surface-card/60 p-4 xl:col-span-1">
+          <div className="space-y-3">
+            <div>
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-surface-muted">Date Range</p>
+              <DateRangePicker
+                value={range}
+                onChange={setRange}
+                presets={[
+                  {
+                    label: "This Month",
+                    range: () => ({ startDate: toInputDate(startOfMonth(now)), endDate: toInputDate(endOfMonth(now)) }),
                   },
-                },
-                {
-                  label: "Last 30 Days",
-                  range: () => {
-                    const s = new Date(now);
-                    s.setDate(s.getDate() - 29);
-                    return { startDate: toInputDate(s), endDate: toInputDate(now) };
+                  {
+                    label: "Last 7 Days",
+                    range: () => {
+                      const s = new Date(now);
+                      s.setDate(s.getDate() - 6);
+                      return { startDate: toInputDate(s), endDate: toInputDate(now) };
+                    },
                   },
-                },
-              ]}
-            />
+                  {
+                    label: "Last 30 Days",
+                    range: () => {
+                      const s = new Date(now);
+                      s.setDate(s.getDate() - 29);
+                      return { startDate: toInputDate(s), endDate: toInputDate(now) };
+                    },
+                  },
+                ]}
+              />
+            </div>
+
+            <div>
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-surface-muted">Payment Mode</p>
+              <select
+                value={paymentMode}
+                onChange={(e) => setPaymentMode(e.target.value)}
+                className="w-full rounded-md border border-surface-border bg-surface px-3 py-2 text-sm text-white focus:border-brand focus:outline-none"
+              >
+                <option value="ALL">All Modes</option>
+                <option value="UPI">UPI</option>
+                <option value="CASH">Cash</option>
+                <option value="CARD">Card</option>
+                <option value="WALLET">Wallet</option>
+                <option value="COMPLIMENTARY">Complimentary</option>
+              </select>
+            </div>
           </div>
           {dateRangeInvalid && (
-            <div className="flex items-center gap-1 text-[10px] text-danger">
+            <div className="flex items-center gap-1 text-[10px] text-danger mt-1">
               <AlertCircle className="h-3 w-3 shrink-0" />
               <span>From must be ≤ To</span>
             </div>
@@ -290,9 +309,8 @@ export function ReportsDashboard() {
               <button
                 key={view}
                 onClick={() => setPieView(view)}
-                className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all ${
-                  pieView === view ? "bg-brand text-white shadow-sm" : "text-surface-muted hover:text-white"
-                }`}
+                className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all ${pieView === view ? "bg-brand text-white shadow-sm" : "text-surface-muted hover:text-white"
+                  }`}
               >
                 {view === "station" ? "🎮 Station" : "🍔 Inventory"}
               </button>
@@ -364,9 +382,8 @@ export function ReportsDashboard() {
               <button
                 key={tab}
                 onClick={() => setAdjTab(tab)}
-                className={`flex-1 rounded-md py-1.5 text-xs font-semibold capitalize transition-all ${
-                  adjTab === tab ? "bg-brand text-white shadow-sm" : "text-surface-muted hover:text-white"
-                }`}
+                className={`flex-1 rounded-md py-1.5 text-xs font-semibold capitalize transition-all ${adjTab === tab ? "bg-brand text-white shadow-sm" : "text-surface-muted hover:text-white"
+                  }`}
               >
                 {tab}
               </button>
@@ -409,11 +426,10 @@ export function ReportsDashboard() {
                       Net Adjustment
                     </p>
                     <p
-                      className={`text-2xl font-bold ${
-                        (reportData?.manualAdjustments.netAdjustment ?? 0) >= 0
+                      className={`text-2xl font-bold ${(reportData?.manualAdjustments.netAdjustment ?? 0) >= 0
                           ? "text-success"
                           : "text-warning"
-                      }`}
+                        }`}
                     >
                       {(reportData?.manualAdjustments.netAdjustment ?? 0) >= 0 ? "+" : ""}
                       {formatCurrency(reportData?.manualAdjustments.netAdjustment ?? 0)}

@@ -58,6 +58,7 @@ export const STATION_STATUS_STYLES = {
 export const STATION_TYPE_LABELS = {
   PS5:              "PlayStation 5",
   PS4:              "PlayStation 4",
+  PS2:              "PlayStation 2",
   PC:               "Gaming PC",
   RACING_SIMULATOR: "Racing Simulator",
   VR:               "VR Station",

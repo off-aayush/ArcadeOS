@@ -53,4 +53,5 @@ export interface ReportData {
 export interface ReportQueryParams {
   startDate?: string; // ISO String
   endDate?: string;   // ISO String
+  paymentMode?: string; // e.g. "ALL", "UPI", "CASH", "CARD"
 }

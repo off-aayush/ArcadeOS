@@ -23,6 +23,7 @@ datasource db {
 enum StationType {
   PS5
   PS4
+  PS2
   PC
   RACING_SIMULATOR
   VR
