@@ -63,18 +63,14 @@ None. Application architecture and core features are completely built.
   - **Files changed:**
     - `src/app/(dashboard)/reports/page.tsx` — removed viewport height clamp, added `pb-8` for scroll padding.
     - `src/features/reports/components/reports-dashboard.tsx` — full layout rewrite; extracted `Spinner`, `EmptyState`, `PieLegend` sub-components; replaced `min-h-0` flex containers with `style={{ height: N }}`; moved pie charts to `lg:grid-cols-2` with Manual Adjustments.
-  - **Verification performed:** `npm run build` — zero TypeScript errors, compiled successfully.
-  - **Schema:** Added `ManualAdjustmentType` enum (`ADJUSTMENTS`, `FRIENDS`, `ROUND_OFF`, `OTHERS`) and `manualAdjustmentType` column to `BillItem`.
-  - **Migration:** Created `20260930193322_manual_adjustment_type` with safe SQL backfill parsing existing text descriptions to set the correct enum value for legacy records.
-  - **Backend:** Updated `BillingService.addAdjustment` to calculate `finalDescription` cleanly and store `manualAdjustmentType`. Updated validators to require descriptions when `OTHERS` is selected.
-  - **Reports API:** Updated `ReportService` to aggregate manual adjustments by counting totals for credits, charges, and category-level breakdown without using a new date scheme.
-  - **UI/Billing:** Updated `AddAdjustmentDialog` to include the new Category dropdown and conditionally enforce the description requirement for `OTHERS`.
-  - **UI/Reports:** 
-    - Appended a dedicated "Manual Adjustments Summary" and "Adjustments by Category" row to `ReportsDashboard`, reusing the existing date filters and data structures.
-    - Redesigned Manual Adjustments into a single compact card with exactly 3 switchable tabs (Summary, Categories, Breakdown).
-    - Replaced the large list with a dynamically rendered Pie/Doughnut Chart for category totals, fully equipped with a custom tooltip displaying amount/count.
-    - Fixed a bug where Recharts Pie Charts failed to render due to zero-height constraints (`min-h-0` inside a flex child without intrinsic height). Implemented hard boundaries (e.g. `min-h-[250px]`) allowing charts to properly initialize responsive bounds.
-    - Restored natural page scrolling for the Reports page by removing overly restrictive absolute viewport clamps, ensuring responsive layouts function as intended across breakpoints.
+- **Phase 10c — Feature Additions & Polish**
+  - **PS2 Station Type:** Added `PS2` to `StationType` Prisma enum (via migration `20261001114028_add_ps2_station_type`). Added to `STATION_TYPE_LABELS` in `constants.ts`. It correctly flows into station creation, editing, session logic, and reports.
+  - **Dashboard Revenue Toggle:** Added a localized visibility toggle to the "Today's Revenue" card on the Dashboard. It defaults to hidden (`₹ ••••`) on every page load to protect privacy, and toggles to show the actual value when the eye icon is clicked.
+  - **Reports Payment Mode Filter:** Added a Payment Mode dropdown (`ALL`, `UPI`, `CASH`, `CARD`, `WALLET`, `COMPLIMENTARY`) next to the Date Range filter in Reports.
+    - API and `ReportQueryParams` extended to accept `paymentMode`.
+    - `ReportService.getDashboardReport` updated to proportionally attribute partial/multiple payments on a bill to Station Revenue, Inventory Revenue, Manual Adjustments, and Total Revenue when a specific mode is selected.
+    - Total Revenue, Revenue Trend, Station Pie Chart, Inventory Pie Chart, and Manual Adjustments all update consistently.
+  - **Verification:** Prisma generated successfully, types checked, and `npm run build` completed with zero errors.
 
 ## Pending
 
