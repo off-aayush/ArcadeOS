@@ -61,11 +61,11 @@ export function Topbar() {
           <span className="font-mono">{time ? formatTime(time) : "—"}</span>
         </div>
 
-        {/* Notifications */}
+        {/* Notifications
         <button className="relative rounded-lg p-1.5 text-surface-muted hover:bg-surface-hover hover:text-white transition-colors">
           <Bell className="h-5 w-5" />
           <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-brand" />
-        </button>
+        </button> */}
 
         {/* User Profile + Dropdown */}
         <div className="relative border-l border-surface-border pl-6">

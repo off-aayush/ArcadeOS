@@ -1,6 +1,5 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
-import { ActiveSessionNotifier } from "@/features/sessions/components/active-session-notifier";
 
 export default function DashboardLayout({
   children,
@@ -9,7 +8,6 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="min-h-screen bg-surface">
-      <ActiveSessionNotifier />
       {/* Sidebar */}
       <Sidebar />
 

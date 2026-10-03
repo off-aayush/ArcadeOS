@@ -398,6 +398,49 @@ export class BillingService {
     });
     return bill as BillWithDetails | null;
   }
+
+  /**
+   * Attach a customer to an existing bill (and its linked session).
+   * Used when a Walk-in session is stopped and staff assigns a customer retroactively.
+   */
+  static async attachCustomer(billId: string, customerId: string): Promise<BillWithDetails> {
+    // 1. Validate the bill exists and is not finalized
+    const bill = await prisma.bill.findUnique({ where: { id: billId } });
+    if (!bill) throw new Error("Bill not found");
+    if (bill.status === "VOIDED") throw new Error("Cannot attach customer to a voided bill");
+    if (bill.customerId) throw new Error("Customer is already attached to this bill");
+
+    // 2. Validate the customer exists
+    const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+    if (!customer) throw new Error("Customer not found");
+
+    // 3. Update bill + session in a transaction
+    const updatedBill = await prisma.$transaction(async (tx) => {
+      // Update Bill
+      await tx.bill.update({
+        where: { id: billId },
+        data: { customerId },
+      });
+
+      // Update linked Session if present
+      if (bill.sessionId) {
+        await tx.session.update({
+          where: { id: bill.sessionId },
+          data: { customerId },
+        });
+      }
+
+      // Return full bill with details
+      return tx.bill.findUnique({
+        where: { id: billId },
+        include: BILL_DETAIL_INCLUDE,
+      });
+    });
+
+    if (!updatedBill) throw new Error("Failed to retrieve updated bill");
+    return updatedBill as BillWithDetails;
+  }
+
   /**
    * Record a payment against an existing bill.
    * Runs in a transaction to safely update bill totals and status.
