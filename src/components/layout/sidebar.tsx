@@ -34,9 +34,10 @@ export function Sidebar() {
       {/* Brand Logo */}
       <div className="flex h-16 items-center gap-2 border-b border-surface-border px-6">
         <Gamepad2 className="h-6 w-6 text-brand" />
-        <span className="text-lg font-bold tracking-tight">
-          <span className="gradient-text">ArcadeOS</span>
-        </span>
+        <div className="flex flex-col leading-none">
+          <span className="text-base font-bold tracking-tight gradient-text">The Lobby</span>
+          <span className="text-[9px] text-surface-muted font-medium tracking-wide">Powered by ArcadeOS</span>
+        </div>
       </div>
 
       {/* Navigation */}
@@ -60,7 +61,7 @@ export function Sidebar() {
 
       {/* Sidebar Footer */}
       <div className="border-t border-surface-border p-4 text-center">
-        <p className="text-xs text-surface-muted">ArcadeOS v1.0.0</p>
+        <p className="text-xs text-surface-muted">The Lobby · Powered by ArcadeOS</p>
       </div>
     </aside>
   );

@@ -91,6 +91,59 @@ None. Application architecture and core features are completely built.
 
 ---
 
+- Walk-in Session → Bill Customer Attachment — inline search UI (replaces separate AttachCustomerDialog). Created missing `PATCH /api/bills/[id]/attach-customer` route and `BillingService.attachCustomer` method.
+- **Bill number timezone fix** — Replaced UTC-based date in `generateBillNumber` and `nextBillSequence` with local system time, and changed sequence logic from `COUNT(*)` to `MAX(billNumber LIKE 'BILL-YYYYMMDD-%')` to prevent unique-constraint collisions on bills generated around midnight in IST.
+
+---
+
+## Phase 11 — Session Warning Bubble + Application Branding
+
+### Root Cause: Why the old 1-hour toast was unreliable
+`ActiveSessionNotifier` ran a 30-second polling `useQuery` with `enabled: true`, but it was mounted in the dashboard layout as a **separate, side-effect-only component** with its own independent `notifiedMap.current` ref. The error in the terminal `[["active-sessions-polling"]]: No queryFn was passed` confirmed that `NotifierLogic` was reading the query by key **without** a `queryFn`, so the query never actually ran in the sub-component — the toast logic was never reached.
+
+### 1. Session 5-Minute Warning Bubble
+- **Replaced** the broken global `ActiveSessionNotifier` toast approach entirely.
+- **Removed** `ActiveSessionNotifier` from `dashboard/layout.tsx` (no polling needed).
+- Added `getApproachingHour(elapsedMs)` pure function to `station-card.tsx`:
+  - Takes `elapsedMs` (already calculated correctly in the card, respecting pause/resume).
+  - Returns the upcoming hour number (1, 2, 3…) if we're within the last 5 minutes of that hour, otherwise `null`.
+  - Works for all hours: 55–60 min → `1`, 115–120 min → `2`, etc.
+- Added `warningHour = useMemo(() => getApproachingHour(elapsedMs), [elapsedMs])` — re-derived every second from the existing 1-second interval already running in the card.
+- Rendered a **positioned bubble** (`absolute -top-14`) above the card with a CSS downward-arrow pointer. Wrapped each card in a `relative` div for containment.
+- Added `pt-16` to the station grid container so bubbles have vertical clearance.
+- Warning disappears automatically when: session stops (activeSession becomes null), session is paused (elapsedMs freezes), or page remounts (derived from persisted timestamps).
+- No database changes. No new intervals. No global state.
+
+### 2. Application Branding → "The Lobby"
+Display name updated to **"The Lobby"** / **"Powered by ArcadeOS"** (secondary) at:
+- **Sidebar logo** (`sidebar.tsx`) — stacked "The Lobby" (gradient) + "Powered by ArcadeOS" (9px muted)
+- **Sidebar footer** — "The Lobby · Powered by ArcadeOS"
+- **Login page** (`login/page.tsx`) — h1 "The Lobby", "Powered by ArcadeOS" subtitle, footer text
+- **Root landing page** (`page.tsx`) — "The Lobby" hero heading + "Powered by ArcadeOS" subtext
+- **Browser metadata** (`layout.tsx`) — title template `%s | The Lobby`, default title `The Lobby — Gaming Lounge Management`
+- Invoice header (`bill-detail-dialog.tsx`) — unchanged; uses `profile?.name ?? "My Arcade"` (dynamic parlour data, not app name)
+
+Internal code identifiers, database, env vars, package name, API routes — **unchanged**.
+
+### Files Changed
+- `src/features/stations/components/station-card.tsx` — getApproachingHour helper, warningHour useMemo, warning bubble UI
+- `src/features/stations/components/station-grid.tsx` — pt-16 for bubble clearance
+- `src/app/(dashboard)/layout.tsx` — removed ActiveSessionNotifier
+- `src/components/layout/sidebar.tsx` — new branding
+- `src/app/login/page.tsx` — new branding
+- `src/app/page.tsx` — new branding
+- `src/app/layout.tsx` — updated metadata
+- `src/app/api/bills/[id]/attach-customer/route.ts` — **created** (was missing, caused "No queryFn" error)
+- `src/features/billing/services/billing.service.ts` — added `attachCustomer` static method
+
+### Verification
+- Build: ✅ `npm run build` — 0 type errors, 0 lint errors (after `.issues` fix)
+- Warning bubble derived purely from `elapsedMs`, which correctly pauses/resumes with the session.
+- Multiple stations each show their own independent bubble based on their own session's elapsed time.
+- Old `active-session-notifier.tsx` retained in filesystem (unused) for reference.
+
+---
+
 ## Known Issues
 
 - None
@@ -104,4 +157,4 @@ None. Application architecture and core features are completely built.
 Next logical steps for the project owner:
 1. Conduct end-to-end user testing.
 2. Deploy to a staging environment.
-3. Review production environment variable checklist in `README.md`.
+3. Review production environment variable checklist in `README.md`.

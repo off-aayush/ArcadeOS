@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "ArcadeOS — Gaming Lounge Management",
+  title: "The Lobby — Gaming Lounge Management",
 };
 
 // Temporary landing page — will be replaced by the dashboard in Feature 2
@@ -17,8 +17,9 @@ export default function HomePage() {
         </div>
 
         <h1 className="text-5xl font-bold tracking-tight">
-          <span className="gradient-text">ArcadeOS</span>
+          <span className="gradient-text">The Lobby</span>
         </h1>
+        <p className="text-sm font-medium text-surface-muted">Powered by ArcadeOS</p>
         <p className="text-lg text-surface-muted max-w-md">
           Realtime Gaming Lounge Management Platform
         </p>

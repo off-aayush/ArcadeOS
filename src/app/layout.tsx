@@ -27,14 +27,14 @@ const jetbrainsMono = JetBrains_Mono({
 // ─────────────────────────────────────────────────────────────────────────────
 export const metadata: Metadata = {
   title: {
-    template: "%s | ArcadeOS",
-    default: "ArcadeOS — Gaming Lounge Management",
+    template: "%s | The Lobby",
+    default: "The Lobby — Gaming Lounge Management",
   },
   description:
     "Professional gaming lounge management system. Manage stations, sessions, billing and customers from one unified dashboard.",
   keywords: ["gaming lounge", "gaming cafe", "management system", "PS5", "PC gaming"],
-  authors: [{ name: "ArcadeOS" }],
-  creator: "ArcadeOS",
+  authors: [{ name: "The Lobby" }],
+  creator: "The Lobby",
   robots: {
     index: false, // internal tool — don't index
     follow: false,
