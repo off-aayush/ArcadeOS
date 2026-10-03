@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { BillWithDetails } from "../types";
 import {
   Dialog,
@@ -40,10 +40,14 @@ import { cn } from "@/lib/utils";
 import { PaymentDialog } from "./payment-dialog";
 import { ApplyDiscountDialog } from "./apply-discount-dialog";
 import { AddAdjustmentDialog } from "./add-adjustment-dialog";
-import { Tag, SlidersHorizontal, ShoppingCart } from "lucide-react";
+import { Tag, SlidersHorizontal, ShoppingCart, Search, UserPlus } from "lucide-react";
 import { API_ROUTES } from "@/lib/constants";
 import { OrderDialog } from "@/features/sessions/components/order-dialog";
 import { useParlourProfile } from "@/features/parlour-profile/hooks/use-parlour-profile";
+import { CustomerListItem } from "@/features/customers/types";
+import { CustomerCreateDialog } from "@/features/customers/components/customer-create-dialog";
+
+type CustomerResult = { customers: CustomerListItem[]; total: number };
 
 interface BillDetailDialogProps {
   /** Pass a sessionId to trigger "generate then show" flow */
@@ -84,11 +88,68 @@ export function BillDetailDialog({
   const { data: profile } = useParlourProfile();
   const [bill, setBill] = useState<BillWithDetails | null>(initialBill ?? null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
   const [isAdjustmentDialogOpen, setIsAdjustmentDialogOpen] = useState(false);
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
   const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
+
+  // ── Customer Search & Attach State ──
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isCustomerCreateOpen, setIsCustomerCreateOpen] = useState(false);
+  const [isAttachingCustomer, setIsAttachingCustomer] = useState(false);
+
+  const handleSearchChange = (val: string) => {
+    setCustomerSearch(val);
+    clearTimeout((handleSearchChange as any)._t);
+    (handleSearchChange as any)._t = setTimeout(() => setDebouncedSearch(val), 350);
+  };
+
+  const { data: customerData, isLoading: isSearching } = useQuery<ApiResponse<CustomerResult>>({
+    queryKey: ["customers-search", debouncedSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({ status: "active" });
+      if (debouncedSearch) params.set("search", debouncedSearch);
+      const res = await fetch(`${API_ROUTES.customers}?${params}`);
+      return res.json();
+    },
+    enabled: isOpen && bill !== null && !bill.customerId,
+  });
+
+  const customers = customerData?.success ? customerData.data.customers : [];
+
+  const handleAttachCustomer = async (customerId: string) => {
+    if (!bill) return;
+    setIsAttachingCustomer(true);
+    try {
+      const res = await fetch(`/api/bills/${bill.id}/attach-customer`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to attach customer");
+
+      toast.add({ title: "Customer Attached", description: "Customer has been attached to the bill and session.", type: "success" });
+      setBill(data.data);
+      setCustomerSearch("");
+      setDebouncedSearch("");
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    } catch (err: any) {
+      toast.add({ title: "Error", description: err.message, type: "error" });
+    } finally {
+      setIsAttachingCustomer(false);
+    }
+  };
+
+  const handleCustomerCreated = async (customer: CustomerListItem) => {
+    setIsCustomerCreateOpen(false);
+    await handleAttachCustomer(customer.id);
+  };
 
   // For FOOD/DRINK items in a session-linked bill, we allow qty edit. For standalone bills (no session), editing is disabled to avoid double-deductions.
   const canEditOrderItems =
@@ -149,6 +210,7 @@ export function BillDetailDialog({
   const handleGenerate = async () => {
     if (!sessionId) return;
     setIsGenerating(true);
+    setGenerateError(null);
     try {
       const res = await fetch("/api/bills", {
         method: "POST",
@@ -162,20 +224,21 @@ export function BillDetailDialog({
         );
       }
       setBill(data.data);
+      setGenerateError(null);
       // Invalidate sessions list so the bill column updates
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
       toast.add({
         title: "Invoice Generated",
         description: `Bill ${data.data.billNumber} created.`,
         type: "success",
       });
     } catch (err: any) {
-      toast.add({
-        title: "Error",
-        description: err.message,
-        type: "error",
-      });
-      onClose();
+      // Do NOT close the dialog on error — keep it open so the user can see
+      // what went wrong and retry if needed.
+      const msg = err.message || "Failed to generate invoice";
+      setGenerateError(msg);
+      console.error("[BillDetailDialog] Invoice generation failed:", msg);
     } finally {
       setIsGenerating(false);
     }
@@ -186,13 +249,16 @@ export function BillDetailDialog({
     if (isOpen) {
       if (initialBill) {
         setBill(initialBill);
-      } else if (sessionId && !bill && !isGenerating) {
+        setGenerateError(null);
+      } else if (sessionId && !bill) {
         handleGenerate();
       }
     } else {
-      // Reset state when closed
+      // Reset state when dialog closes
       setBill(null);
+      setGenerateError(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initialBill, sessionId]);
 
   const handleOpenChange = (open: boolean) => {
@@ -301,6 +367,26 @@ export function BillDetailDialog({
           </div>
         )}
 
+        {/* ── Error state ────────────────────────────────────────────────── */}
+        {!isGenerating && generateError && !bill && (
+          <div className="flex flex-col items-center justify-center py-12 gap-4 px-6">
+            <div className="rounded-full bg-danger/15 border border-danger/30 p-4">
+              <Receipt className="h-8 w-8 text-danger" />
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-sm font-semibold text-white">Invoice Generation Failed</p>
+              <p className="text-xs text-surface-muted max-w-sm">{generateError}</p>
+            </div>
+            <Button
+              onClick={handleGenerate}
+              className="bg-brand hover:bg-brand/80 text-white font-semibold gap-2"
+            >
+              <Loader2 className="h-4 w-4" />
+              Retry
+            </Button>
+          </div>
+        )}
+
         {/* ── Bill content ──────────────────────────────────────────────── */}
         {!isGenerating && bill && (
           <div id="invoice-print-zone" className="space-y-5 p-5 max-h-[70vh] overflow-y-auto">
@@ -393,20 +479,91 @@ export function BillDetailDialog({
                   </div>
                 )}
                 {/* Customer */}
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-surface-muted shrink-0" />
-                  <div className="flex flex-col">
-                    <span className="text-xs text-surface-muted">Customer</span>
-                    <span className="font-medium text-white">
-                      {customer?.name ?? "Walk-in"}
-                    </span>
-                    {customer && "phone" in customer && (customer as any).phone && (
-                      <span className="text-xs text-surface-muted">
-                        {(customer as any).phone}
-                      </span>
+                {customer ? (
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-surface-muted shrink-0" />
+                    <div className="flex flex-col">
+                      <span className="text-xs text-surface-muted">Customer</span>
+                      <span className="font-medium text-white">{customer.name}</span>
+                      {"phone" in customer && (customer as any).phone && (
+                        <span className="text-xs text-surface-muted">{(customer as any).phone}</span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="col-span-2 space-y-2 mt-2 pt-3 border-t border-surface-border/50">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-surface-muted uppercase tracking-wider">Customer (Optional)</span>
+                    </div>
+                    {bill && bill.status !== "PAID" && bill.status !== "VOIDED" ? (
+                      <div className="space-y-1 relative">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-surface-muted" />
+                          <input
+                            type="text"
+                            placeholder="Search by name, phone..."
+                            value={customerSearch}
+                            onChange={(e) => handleSearchChange(e.target.value)}
+                            disabled={isAttachingCustomer}
+                            className="w-full rounded-lg border border-surface-border bg-surface pl-9 pr-4 py-2 text-sm text-white placeholder:text-surface-muted focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-50"
+                          />
+                        </div>
+                        {customerSearch && (
+                          <div className="absolute z-50 w-full mt-1 rounded-lg border border-surface-border bg-surface-card max-h-40 overflow-y-auto shadow-xl divide-y divide-surface-border/50">
+                            {isSearching ? (
+                              <p className="px-4 py-3 text-sm text-surface-muted">Searching...</p>
+                            ) : customers.length === 0 ? (
+                              <div className="px-4 py-4 text-center space-y-3">
+                                <p className="text-sm text-surface-muted">No customers found</p>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setIsCustomerCreateOpen(true)}
+                                  className="border-brand/40 text-brand hover:bg-brand/10 w-full"
+                                >
+                                  <UserPlus className="h-4 w-4 mr-2" />
+                                  Register New Customer
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                {customers.map((c: CustomerListItem) => (
+                                  <button
+                                    key={c.id}
+                                    onClick={() => handleAttachCustomer(c.id)}
+                                    disabled={isAttachingCustomer}
+                                    className="w-full flex items-center justify-between px-4 py-2.5 text-left transition-colors hover:bg-surface-hover disabled:opacity-50"
+                                  >
+                                    <div>
+                                      <span className="text-sm font-medium text-white block">{c.name}</span>
+                                      <span className="text-xs text-surface-muted">{c.phone || c.email || ""}</span>
+                                    </div>
+                                    {isAttachingCustomer && <Loader2 className="h-3.5 w-3.5 animate-spin text-surface-muted" />}
+                                  </button>
+                                ))}
+                                <div className="p-2 border-t border-surface-border/50 bg-surface/30">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setIsCustomerCreateOpen(true)}
+                                    className="text-brand hover:text-brand/80 hover:bg-brand/10 w-full justify-start"
+                                  >
+                                    <UserPlus className="h-4 w-4 mr-2" />
+                                    Register New Customer
+                                  </Button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-sm font-medium text-surface-muted block">Walk-in</span>
                     )}
                   </div>
-                </div>
+                )}
                 {/* Date */}
                 <div className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4 text-surface-muted shrink-0" />
@@ -727,6 +884,13 @@ export function BillDetailDialog({
           }}
         />
       )}
+
+      {/* Customer Create Dialog */}
+      <CustomerCreateDialog
+        isOpen={isCustomerCreateOpen}
+        onClose={() => setIsCustomerCreateOpen(false)}
+        onSuccess={handleCustomerCreated}
+      />
     </Dialog>
   );
 }

@@ -28,8 +28,8 @@ export async function PATCH(
     console.error("API Error in PATCH /api/bills/[id]/attach-customer:", error);
     const status =
       error.message.includes("not found") ? 404 :
-      error.message.includes("already attached") ? 409 :
-      error.message.includes("voided") ? 422 : 500;
+        error.message.includes("already attached") ? 409 :
+          error.message.includes("voided") ? 422 : 500;
     return NextResponse.json(createErrorResponse(error.message), { status });
   }
 }
