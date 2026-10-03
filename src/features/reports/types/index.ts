@@ -26,14 +26,32 @@ export interface InventoryRevenueData {
   revenue: number;
 }
 
+export interface ManualAdjustmentSummary {
+  totalCredits: number;
+  totalCharges: number;
+  netAdjustment: number;
+  creditCount: number;
+  chargeCount: number;
+  totalCount: number;
+  byCategory: {
+    category: "ADJUSTMENTS" | "FRIENDS" | "ROUND_OFF" | "OTHERS";
+    label: string;
+    creditAmount: number;
+    chargeAmount: number;
+    count: number;
+  }[];
+}
+
 export interface ReportData {
   summary: ReportSummary;
   revenueChart: RevenueChartData[];
   stationRevenue: StationRevenueData[];
   inventoryRevenue: InventoryRevenueData[];
+  manualAdjustments: ManualAdjustmentSummary;
 }
 
 export interface ReportQueryParams {
   startDate?: string; // ISO String
   endDate?: string;   // ISO String
+  paymentMode?: string; // e.g. "ALL", "UPI", "CASH", "CARD"
 }

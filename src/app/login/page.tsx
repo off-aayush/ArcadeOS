@@ -25,9 +25,12 @@ export default function LoginPage() {
           </div>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
-              <span className="gradient-text">ArcadeOS</span>
+              <span className="gradient-text">The Lobby</span>
             </h1>
-            <p className="mt-1 text-sm text-surface-muted">
+            <p className="mt-0.5 text-xs font-medium text-surface-muted tracking-wide">
+              Powered by ArcadeOS
+            </p>
+            <p className="mt-2 text-sm text-surface-muted">
               Gaming Lounge Management Platform
             </p>
           </div>
@@ -52,7 +55,7 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-surface-muted">
-          ArcadeOS v1.0.0 · Internal Staff Portal
+          The Lobby · Powered by ArcadeOS · Internal Staff Portal
         </p>
       </div>
     </main>

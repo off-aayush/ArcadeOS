@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function ReportsPage() {
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] gap-6">
+    <div className="flex flex-col gap-6 pb-8">
       <PageHeader
         title="Reports & Analytics"
         description="Monitor lounge performance, revenue trends, and station usage."

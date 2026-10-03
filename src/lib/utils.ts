@@ -110,10 +110,11 @@ export function formatTime(date: Date | string | null | undefined): string {
 /// Generates a sequential, readable bill number: "BILL-20240801-0001"
 export function generateBillNumber(sequence: number): string {
   const today = new Date();
-  const dateStr = today
-    .toISOString()
-    .slice(0, 10)
-    .replace(/-/g, "");
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  const dateStr = `${year}${month}${day}`;
+  
   const seq = sequence.toString().padStart(4, "0");
   return `${BILL_NUMBER_PREFIX}-${dateStr}-${seq}`;
 }

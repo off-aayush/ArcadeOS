@@ -43,10 +43,14 @@ export type ApplyDiscountInput = z.infer<typeof applyDiscountSchema>;
 // ── Add a manual adjustment to a bill ────────────────────────────────────────
 export const addAdjustmentSchema = z.object({
   type: z.enum(["MANUAL_CREDIT", "MANUAL_CHARGE"]),
+  category: z.enum(["ADJUSTMENTS", "FRIENDS", "ROUND_OFF", "OTHERS"]),
   amount: z.coerce.number().positive("Amount must be greater than 0"),
-  description: z.string().min(1, "Description is required"),
+  description: z.string().optional(),
   notes: z.string().optional(),
-});
+}).refine(
+  (data) => data.category !== "OTHERS" || (data.description && data.description.trim().length > 0),
+  { message: "Description is required when category is OTHERS", path: ["description"] }
+);
 
 export type AddAdjustmentInput = z.infer<typeof addAdjustmentSchema>;
 
