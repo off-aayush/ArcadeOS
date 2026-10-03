@@ -75,7 +75,7 @@ async function nextBillSequence(): Promise<number> {
   const parts = lastBill.billNumber.split("-");
   const seqStr = parts[parts.length - 1];
   const lastSeq = parseInt(seqStr, 10);
-  
+
   return isNaN(lastSeq) ? 1 : lastSeq + 1;
 }
 
@@ -157,9 +157,9 @@ export class BillingService {
       });
 
       emitSocketEvent("invalidate_bills");
-      
+
       await AuditLogService.log("BILL_GENERATED", "Bill", existingBillId, actorId, { grandTotal: Number(bill.grandTotal) });
-      
+
       return bill as BillWithDetails;
     }
 
@@ -196,18 +196,18 @@ export class BillingService {
             },
             ...(roundingAmount !== 0
               ? {
-                  createMany: {
-                    data: [
-                      {
-                        type: "ROUNDING",
-                        description: "Rounding adjustment",
-                        quantity: 1,
-                        unitPrice: roundingAmount,
-                        totalPrice: roundingAmount,
-                      },
-                    ],
-                  },
-                }
+                createMany: {
+                  data: [
+                    {
+                      type: "ROUNDING",
+                      description: "Rounding adjustment",
+                      quantity: 1,
+                      unitPrice: roundingAmount,
+                      totalPrice: roundingAmount,
+                    },
+                  ],
+                },
+              }
               : {}),
           },
         },
@@ -399,47 +399,6 @@ export class BillingService {
     return bill as BillWithDetails | null;
   }
 
-  /**
-   * Attach a customer to an existing bill (and its linked session).
-   * Used when a Walk-in session is stopped and staff assigns a customer retroactively.
-   */
-  static async attachCustomer(billId: string, customerId: string): Promise<BillWithDetails> {
-    // 1. Validate the bill exists and is not finalized
-    const bill = await prisma.bill.findUnique({ where: { id: billId } });
-    if (!bill) throw new Error("Bill not found");
-    if (bill.status === "VOIDED") throw new Error("Cannot attach customer to a voided bill");
-    if (bill.customerId) throw new Error("Customer is already attached to this bill");
-
-    // 2. Validate the customer exists
-    const customer = await prisma.customer.findUnique({ where: { id: customerId } });
-    if (!customer) throw new Error("Customer not found");
-
-    // 3. Update bill + session in a transaction
-    const updatedBill = await prisma.$transaction(async (tx) => {
-      // Update Bill
-      await tx.bill.update({
-        where: { id: billId },
-        data: { customerId },
-      });
-
-      // Update linked Session if present
-      if (bill.sessionId) {
-        await tx.session.update({
-          where: { id: bill.sessionId },
-          data: { customerId },
-        });
-      }
-
-      // Return full bill with details
-      return tx.bill.findUnique({
-        where: { id: billId },
-        include: BILL_DETAIL_INCLUDE,
-      });
-    });
-
-    if (!updatedBill) throw new Error("Failed to retrieve updated bill");
-    return updatedBill as BillWithDetails;
-  }
 
   /**
    * Record a payment against an existing bill.
@@ -450,11 +409,11 @@ export class BillingService {
 
     const result = await prisma.$transaction(async (tx) => {
       const bill = await tx.bill.findUnique({ where: { id: billId } });
-      
+
       if (!bill) {
         throw new Error("Bill not found");
       }
-      
+
       if (Number(bill.amountDue) <= 0) {
         throw new Error("Bill is already fully paid");
       }
@@ -479,7 +438,7 @@ export class BillingService {
       // 2. Calculate new totals
       const newAmountPaid = Number(bill.amountPaid) + input.amount;
       const newAmountDue = Number(bill.grandTotal) - newAmountPaid;
-      
+
       // Determine new status
       let newStatus: BillStatus = bill.status;
       let paidAt = bill.paidAt;
@@ -689,9 +648,9 @@ export class BillingService {
     });
 
     const actorId = await getSystemUserId();
-    await AuditLogService.log("DISCOUNT_APPLIED", "Bill", billId, actorId, { 
-      discountId: input.discountId, 
-      customAmount: input.customAmount 
+    await AuditLogService.log("DISCOUNT_APPLIED", "Bill", billId, actorId, {
+      discountId: input.discountId,
+      customAmount: input.customAmount
     });
 
     return result as BillWithDetails;
@@ -719,7 +678,7 @@ export class BillingService {
         OTHERS: "Others"
       };
       const categoryLabel = categoryLabels[input.category];
-      
+
       let finalDescription = categoryLabel;
       if (input.description && input.description.trim()) {
         finalDescription += ` — ${input.description.trim()}`;
@@ -766,7 +725,7 @@ export class BillingService {
       if (!item || item.billId !== billId) {
         throw new Error("Item not found on this bill");
       }
-      
+
       if (item.type !== "DISCOUNT" && item.type !== "MANUAL_CREDIT" && item.type !== "MANUAL_CHARGE") {
         throw new Error("Can only manually remove discounts and manual adjustments via this method");
       }
@@ -870,7 +829,7 @@ export class BillingService {
 
       const itemType =
         foodItem.category === "BEVERAGES_HOT" ||
-        foodItem.category === "BEVERAGES_COLD"
+          foodItem.category === "BEVERAGES_COLD"
           ? "DRINK"
           : "FOOD";
       const unitPrice = Number(foodItem.price);
@@ -950,8 +909,7 @@ export class BillingService {
         const foodItem = await tx.foodItem.findUnique({ where: { id: item.foodItemId } });
         if (!foodItem || foodItem.stock < delta) {
           throw new Error(
-            `Insufficient stock. Only ${
-              foodItem?.stock ?? 0
+            `Insufficient stock. Only ${foodItem?.stock ?? 0
             } additional unit(s) available.`
           );
         }
@@ -1053,7 +1011,7 @@ export class BillingService {
       if (bill.customerId || bill.session?.customerId) {
         throw new Error("This bill/session already has a customer attached");
       }
-      
+
       const customer = await tx.customer.findUnique({ where: { id: customerId } });
       if (!customer) throw new Error("Customer not found");
 
