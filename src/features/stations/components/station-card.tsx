@@ -128,29 +128,31 @@ export function StationCard({ station, onEdit }: StationCardProps) {
     <>
       {/* ── Warning Bubble ───────────────────────────────────────────── */}
       <div className="relative">
-        {activeSession && warningHour !== null && (
-          <div
-            className={cn(
-              "absolute -top-14 left-1/2 -translate-x-1/2 z-10",
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg",
-              "bg-warning/15 border border-warning/40 text-warning text-xs font-semibold",
-              "shadow-lg backdrop-blur-sm whitespace-nowrap",
-              "animate-fade-in"
-            )}
-          >
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-            {warningHour} hr in {Math.ceil(((warningHour * 60 * 60 * 1000) - elapsedMs) / 60000)} min
-            {/* CSS downward arrow pointer */}
-            <span
-              className="absolute left-1/2 -translate-x-1/2 -bottom-[7px] w-0 h-0"
-              style={{
-                borderLeft: "7px solid transparent",
-                borderRight: "7px solid transparent",
-                borderTop: "7px solid rgb(202 138 4 / 0.4)", // warning/40
-              }}
-            />
-          </div>
-        )}
+        {activeSession && warningHour !== null &&
+          (
+            <div
+              className={cn(
+                "absolute -top-3 -right-2 z-10",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg",
+                "bg-warning/15 border border-warning/40 text-warning text-xs font-semibold",
+                "shadow-lg backdrop-blur-sm whitespace-nowrap",
+                "animate-fade-in"
+              )}
+            >
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              {/* {'1 hour in 3 min'} */}
+              {warningHour} hr in {Math.ceil(((warningHour * 60 * 60 * 1000) - elapsedMs) / 60000)} min
+              {/* CSS downward arrow pointer */}
+              {/* <span
+                className="absolute left-1/2 -translate-x-1/2 -bottom-[8px] w-0 h-0"
+                style={{
+                  borderLeft: "7px solid transparent",
+                  borderRight: "7px solid transparent",
+                  borderTop: "7px solid rgb(202 138 4 / 0.4)", // warning/40
+                }}
+              /> */}
+            </div>
+          )}
 
         <div
           className={cn(
@@ -158,130 +160,130 @@ export function StationCard({ station, onEdit }: StationCardProps) {
             cardGlow
           )}
         >
-        {/* Edit Trigger */}
-        {onEdit && (
-          <button
-            onClick={() => onEdit(station)}
-            className="absolute top-4 right-4 p-1.5 rounded-lg bg-surface border border-surface-border text-surface-muted opacity-0 group-hover:opacity-100 hover:text-white transition-opacity cursor-pointer"
-            title="Edit Station"
-          >
-            <Edit2 className="h-3.5 w-3.5" />
-          </button>
-        )}
+          {/* Edit Trigger */}
+          {onEdit && (
+            <button
+              onClick={() => onEdit(station)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg bg-surface border border-surface-border text-surface-muted opacity-0 group-hover:opacity-100 hover:text-white transition-opacity cursor-pointer"
+              title="Edit Station"
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+            </button>
+          )}
 
-        {/* Top Header */}
-        <div className="flex items-start justify-between pr-6">
-          <div className="space-y-1">
-            <h3 className="font-bold text-lg text-white leading-tight">{station.name}</h3>
-            <p className="text-xs text-surface-muted flex items-center gap-1.5">
-              <IconComponent className="h-3.5 w-3.5" />
-              {STATION_TYPE_LABELS[station.type as keyof typeof STATION_TYPE_LABELS] || station.type}
-            </p>
+          {/* Top Header */}
+          <div className="flex items-start justify-between pr-6">
+            <div className="space-y-1">
+              <h3 className="font-bold text-lg text-white leading-tight">{station.name}</h3>
+              <p className="text-xs text-surface-muted flex items-center gap-1.5">
+                <IconComponent className="h-3.5 w-3.5" />
+                {STATION_TYPE_LABELS[station.type as keyof typeof STATION_TYPE_LABELS] || station.type}
+              </p>
+            </div>
+            <div className="shrink-0">
+              <StationStatusBadge status={station.status} />
+            </div>
           </div>
-          <div className="shrink-0">
-            <StationStatusBadge status={station.status} />
-          </div>
-        </div>
 
-        {/* Dynamic Content Body based on state */}
-        <div className="flex-1 py-4 flex flex-col justify-center text-center min-h-[90px]">
-          {activeSession ? (
-            <div className="space-y-2">
-              <p className={cn(
-                "text-3xl font-mono font-bold tracking-tight text-white",
-                !isPaused && "animate-pulse"
-              )}>
-                {formatTimer(elapsedMs)}
-              </p>
-              <p className="text-xs text-surface-muted flex items-center justify-center gap-1">
-                <Users className="h-3.5 w-3.5" />
-                {activeSession.customer?.name || "Walk-in Customer"}
-              </p>
-              <p className="text-xs text-surface-muted flex items-center justify-center gap-1">
-                {activeSession.playerCount} {activeSession.playerCount === 1 ? "Player" : "Players"}
-                <span className="text-surface-border">·</span>
-                {formatCurrency(Number(activeSession.ratePerHour))}/hr
-              </p>
-              {isPaused && (
-                <span className="inline-block text-[10px] font-semibold text-warning bg-warning/15 border border-warning/30 rounded-full px-2 py-0.5">
-                  PAUSED
-                </span>
-              )}
-              {/* Food order total if items exist */}
-              {activeSession?.bill && (activeSession.bill as any).status === "DRAFT" && (
+          {/* Dynamic Content Body based on state */}
+          <div className="flex-1 py-4 flex flex-col justify-center text-center min-h-[90px]">
+            {activeSession ? (
+              <div className="space-y-2">
+                <p className={cn(
+                  "text-3xl font-mono font-bold tracking-tight text-white",
+                  !isPaused && "animate-pulse"
+                )}>
+                  {formatTimer(elapsedMs)}
+                </p>
+                <p className="text-xs text-surface-muted flex items-center justify-center gap-1">
+                  <Users className="h-3.5 w-3.5" />
+                  {activeSession.customer?.name || "Walk-in Customer"}
+                </p>
+                <p className="text-xs text-surface-muted flex items-center justify-center gap-1">
+                  {activeSession.playerCount} {activeSession.playerCount === 1 ? "Player" : "Players"}
+                  <span className="text-surface-border">·</span>
+                  {formatCurrency(Number(activeSession.ratePerHour))}/hr
+                </p>
+                {isPaused && (
+                  <span className="inline-block text-[10px] font-semibold text-warning bg-warning/15 border border-warning/30 rounded-full px-2 py-0.5">
+                    PAUSED
+                  </span>
+                )}
+                {/* Food order total if items exist */}
+                {activeSession?.bill && (activeSession.bill as any).status === "DRAFT" && (
+                  <button
+                    onClick={() => setIsOrderOpen(true)}
+                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand bg-brand/10 border border-brand/30 rounded-full px-2 py-0.5 hover:bg-brand/20 transition-all"
+                  >
+                    <ShoppingCart className="h-2.5 w-2.5" />
+                    View Order
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <p className="text-sm text-surface-muted">
+                  {station.pricings?.length > 1 ? "Starting from" : "Rate per hour"}
+                </p>
+                <p className="text-2xl font-bold text-white">
+                  {station.pricings?.length > 0
+                    ? formatCurrency(Math.min(...station.pricings.map(p => Number(p.ratePerHour))))
+                    : formatCurrency(Number(station.ratePerHour))}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Card Footer Actions */}
+          <div className="flex items-center justify-between border-t border-surface-border pt-4 text-xs">
+            <span className="text-surface-muted">
+              Max players: {station.maxPlayers}
+            </span>
+
+            {station.status === "AVAILABLE" ? (
+              <button
+                onClick={() => setIsStartOpen(true)}
+                disabled={isActing}
+                className="rounded-lg bg-success/15 hover:bg-success/25 border border-success/30 px-3.5 py-1.5 font-semibold text-success transition-all active:scale-95 disabled:opacity-50"
+              >
+                ▶ Start Session
+              </button>
+            ) : station.status === "OCCUPIED" && activeSession ? (
+              <div className="flex items-center gap-1.5">
+                {/* Order items button */}
                 <button
                   onClick={() => setIsOrderOpen(true)}
-                  className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand bg-brand/10 border border-brand/30 rounded-full px-2 py-0.5 hover:bg-brand/20 transition-all"
+                  disabled={isActing}
+                  title="Add Items"
+                  className="rounded-lg p-1.5 border border-brand/30 bg-brand/10 text-brand hover:bg-brand/20 transition-all disabled:opacity-50"
                 >
-                  <ShoppingCart className="h-2.5 w-2.5" />
-                  View Order
+                  <ShoppingCart className="h-3.5 w-3.5" />
                 </button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-1">
-              <p className="text-sm text-surface-muted">
-                {station.pricings?.length > 1 ? "Starting from" : "Rate per hour"}
-              </p>
-              <p className="text-2xl font-bold text-white">
-                {station.pricings?.length > 0
-                  ? formatCurrency(Math.min(...station.pricings.map(p => Number(p.ratePerHour))))
-                  : formatCurrency(Number(station.ratePerHour))}
-              </p>
-            </div>
-          )}
+                {/* Pause / Resume toggle */}
+                <button
+                  onClick={() => handleSessionAction(isPaused ? "resume" : "pause")}
+                  disabled={isActing}
+                  title={isPaused ? "Resume" : "Pause"}
+                  className="rounded-lg p-1.5 border border-warning/30 bg-warning/10 text-warning hover:bg-warning/20 transition-all disabled:opacity-50"
+                >
+                  {isPaused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+                </button>
+                {/* Stop session */}
+                <button
+                  onClick={() => handleSessionAction("stop")}
+                  disabled={isActing}
+                  title="Stop Session"
+                  className="rounded-lg bg-danger/15 hover:bg-danger/25 border border-danger/30 px-3.5 py-1.5 font-semibold text-danger transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <Square className="h-3 w-3 inline mr-1" />
+                  Stop
+                </button>
+              </div>
+            ) : (
+              <span className="text-surface-muted">Unavailable</span>
+            )}
+          </div>
         </div>
-
-        {/* Card Footer Actions */}
-        <div className="flex items-center justify-between border-t border-surface-border pt-4 text-xs">
-          <span className="text-surface-muted">
-            Max players: {station.maxPlayers}
-          </span>
-
-          {station.status === "AVAILABLE" ? (
-            <button
-              onClick={() => setIsStartOpen(true)}
-              disabled={isActing}
-              className="rounded-lg bg-success/15 hover:bg-success/25 border border-success/30 px-3.5 py-1.5 font-semibold text-success transition-all active:scale-95 disabled:opacity-50"
-            >
-              ▶ Start Session
-            </button>
-          ) : station.status === "OCCUPIED" && activeSession ? (
-            <div className="flex items-center gap-1.5">
-              {/* Order items button */}
-              <button
-                onClick={() => setIsOrderOpen(true)}
-                disabled={isActing}
-                title="Add Items"
-                className="rounded-lg p-1.5 border border-brand/30 bg-brand/10 text-brand hover:bg-brand/20 transition-all disabled:opacity-50"
-              >
-                <ShoppingCart className="h-3.5 w-3.5" />
-              </button>
-              {/* Pause / Resume toggle */}
-              <button
-                onClick={() => handleSessionAction(isPaused ? "resume" : "pause")}
-                disabled={isActing}
-                title={isPaused ? "Resume" : "Pause"}
-                className="rounded-lg p-1.5 border border-warning/30 bg-warning/10 text-warning hover:bg-warning/20 transition-all disabled:opacity-50"
-              >
-                {isPaused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
-              </button>
-              {/* Stop session */}
-              <button
-                onClick={() => handleSessionAction("stop")}
-                disabled={isActing}
-                title="Stop Session"
-                className="rounded-lg bg-danger/15 hover:bg-danger/25 border border-danger/30 px-3.5 py-1.5 font-semibold text-danger transition-all active:scale-95 disabled:opacity-50"
-              >
-                <Square className="h-3 w-3 inline mr-1" />
-                Stop
-              </button>
-            </div>
-          ) : (
-            <span className="text-surface-muted">Unavailable</span>
-          )}
-        </div>
-      </div>
       </div>
       {/* end relative wrapper */}
 
