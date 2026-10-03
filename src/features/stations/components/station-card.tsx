@@ -1,17 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { StationListItem } from "../types";
 import { StationStatusBadge } from "./station-status-badge";
 import { STATION_TYPE_LABELS, API_ROUTES } from "@/lib/constants";
 import { formatCurrency, formatTimer } from "@/lib/utils";
-import { Monitor, Laptop, Gamepad, Trophy, HelpCircle, Users, Edit2, Pause, Play, Square, Glasses, GlassesIcon, LucideGlasses, HeadsetIcon, LucideRulerDimensionLine, BoxIcon, ShoppingCart } from "lucide-react";
+import { Monitor, Gamepad, Trophy, HelpCircle, Users, Edit2, Pause, Play, Square, BoxIcon, ShoppingCart, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StartSessionDialog } from "@/features/sessions/components/start-session-dialog";
 import { toast } from "@/components/ui/toast";
 import { BillDetailDialog } from "@/features/billing/components/bill-detail-dialog";
 import { OrderDialog } from "@/features/sessions/components/order-dialog";
+
+/** Returns which upcoming hour is within the 5-minute warning window (1, 2, 3\u2026) or null */
+function getApproachingHour(elapsedMs: number): number | null {
+  if (elapsedMs <= 0) return null;
+  const WARN_MS = 5 * 60 * 1000; // last 5 min of every hour
+  const HOUR_MS = 60 * 60 * 1000;
+  const msInCurrentHour = elapsedMs % HOUR_MS;
+  const completedHours = Math.floor(elapsedMs / HOUR_MS);
+  const remainingInHour = HOUR_MS - msInCurrentHour;
+  if (remainingInHour <= WARN_MS && remainingInHour > 0) {
+    return completedHours + 1;
+  }
+  return null;
+}
 
 interface StationCardProps {
   station: StationListItem;
@@ -37,6 +51,9 @@ export function StationCard({ station, onEdit }: StationCardProps) {
   const [isActing, setIsActing] = useState(false);
   const [billingSessionId, setBillingSessionId] = useState<string | null>(null);
   const [isOrderOpen, setIsOrderOpen] = useState(false);
+
+  // Derived: which hour is approaching (null = no warning)
+  const warningHour = useMemo(() => getApproachingHour(elapsedMs), [elapsedMs]);
 
   const startTime = activeSession?.startTime;
   const totalPausedMs = activeSession?.totalPausedMs || 0;
@@ -109,12 +126,38 @@ export function StationCard({ station, onEdit }: StationCardProps) {
 
   return (
     <>
-      <div
-        className={cn(
-          "glass-card p-6 flex flex-col gap-5 transition-all duration-300 hover:-translate-y-1 relative group",
-          cardGlow
+      {/* ── Warning Bubble ───────────────────────────────────────────── */}
+      <div className="relative">
+        {activeSession && warningHour !== null && (
+          <div
+            className={cn(
+              "absolute -top-14 left-1/2 -translate-x-1/2 z-10",
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg",
+              "bg-warning/15 border border-warning/40 text-warning text-xs font-semibold",
+              "shadow-lg backdrop-blur-sm whitespace-nowrap",
+              "animate-fade-in"
+            )}
+          >
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            {warningHour} hr in {Math.ceil(((warningHour * 60 * 60 * 1000) - elapsedMs) / 60000)} min
+            {/* CSS downward arrow pointer */}
+            <span
+              className="absolute left-1/2 -translate-x-1/2 -bottom-[7px] w-0 h-0"
+              style={{
+                borderLeft: "7px solid transparent",
+                borderRight: "7px solid transparent",
+                borderTop: "7px solid rgb(202 138 4 / 0.4)", // warning/40
+              }}
+            />
+          </div>
         )}
-      >
+
+        <div
+          className={cn(
+            "glass-card p-6 flex flex-col gap-5 transition-all duration-300 hover:-translate-y-1 relative group",
+            cardGlow
+          )}
+        >
         {/* Edit Trigger */}
         {onEdit && (
           <button
@@ -239,6 +282,8 @@ export function StationCard({ station, onEdit }: StationCardProps) {
           )}
         </div>
       </div>
+      </div>
+      {/* end relative wrapper */}
 
       {/* Start Session Dialog */}
       <StartSessionDialog
