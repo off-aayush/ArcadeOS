@@ -49,7 +49,7 @@ export function Topbar() {
   }
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 w-full items-center justify-between border-b border-surface-border bg-surface/85 px-6 backdrop-blur-sm">
+    <header className="sticky top-0 z-60 flex h-16 w-full items-center justify-between border-b border-surface-border bg-surface/85 px-6 backdrop-blur-sm">
       {/* Left — breadcrumbs placeholder */}
       <div className="flex items-center gap-4" />
 
@@ -61,11 +61,11 @@ export function Topbar() {
           <span className="font-mono">{time ? formatTime(time) : "—"}</span>
         </div>
 
-        {/* Notifications */}
+        {/* Notifications
         <button className="relative rounded-lg p-1.5 text-surface-muted hover:bg-surface-hover hover:text-white transition-colors">
           <Bell className="h-5 w-5" />
           <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-brand" />
-        </button>
+        </button> */}
 
         {/* User Profile + Dropdown */}
         <div className="relative border-l border-surface-border pl-6">

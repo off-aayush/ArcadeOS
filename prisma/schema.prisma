@@ -23,6 +23,7 @@ datasource db {
 enum StationType {
   PS5
   PS4
+  PS2
   PC
   RACING_SIMULATOR
   VR
@@ -74,6 +75,14 @@ enum BillItemType {
   MANUAL_CREDIT  // manual price reduction by staff
   MANUAL_CHARGE  // manual surcharge by staff
   ROUNDING       // rounding adjustment to nearest integer
+}
+
+/// Category for manual adjustments
+enum ManualAdjustmentType {
+  ADJUSTMENTS
+  FRIENDS
+  ROUND_OFF
+  OTHERS
 }
 
 /// How a discount is calculated
@@ -375,6 +384,7 @@ model BillItem {
   foodItem    FoodItem?    @relation(fields: [foodItemId], references: [id])
   discountId  String?
   discount    Discount?    @relation(fields: [discountId], references: [id])
+  manualAdjustmentType ManualAdjustmentType?
 
   // Timestamps
   createdAt   DateTime     @default(now())

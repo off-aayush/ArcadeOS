@@ -7,8 +7,9 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const startDate = searchParams.get("startDate") || undefined;
     const endDate = searchParams.get("endDate") || undefined;
+    const paymentMode = searchParams.get("paymentMode") || undefined;
 
-    const data = await ReportService.getDashboardReport({ startDate, endDate });
+    const data = await ReportService.getDashboardReport({ startDate, endDate, paymentMode });
 
     return NextResponse.json(createSuccessResponse(data));
   } catch (error: any) {

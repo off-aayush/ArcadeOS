@@ -26,6 +26,7 @@ interface AddAdjustmentDialogProps {
 export function AddAdjustmentDialog({ bill, isOpen, onClose, onSuccess }: AddAdjustmentDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [type, setType] = useState<"MANUAL_CREDIT" | "MANUAL_CHARGE">("MANUAL_CHARGE");
+  const [category, setCategory] = useState<"ADJUSTMENTS" | "FRIENDS" | "ROUND_OFF" | "OTHERS">("ADJUSTMENTS");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
@@ -35,6 +36,7 @@ export function AddAdjustmentDialog({ bill, isOpen, onClose, onSuccess }: AddAdj
       onClose();
       setTimeout(() => {
         setType("MANUAL_CHARGE");
+        setCategory("ADJUSTMENTS");
         setAmount("");
         setDescription("");
         setNotes("");
@@ -50,8 +52,8 @@ export function AddAdjustmentDialog({ bill, isOpen, onClose, onSuccess }: AddAdj
       toast.add({ title: "Invalid amount", description: "Amount must be greater than 0.", type: "error" });
       return;
     }
-    if (!description.trim()) {
-      toast.add({ title: "Missing description", description: "Please enter a description.", type: "error" });
+    if (category === "OTHERS" && !description.trim()) {
+      toast.add({ title: "Missing description", description: "Please enter a description for OTHERS.", type: "error" });
       return;
     }
 
@@ -60,7 +62,7 @@ export function AddAdjustmentDialog({ bill, isOpen, onClose, onSuccess }: AddAdj
       const res = await fetch(`/api/bills/${bill.id}/adjustments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, amount: parsedAmount, description, notes }),
+        body: JSON.stringify({ type, category, amount: parsedAmount, description, notes }),
       });
       const data: ApiResponse<BillWithDetails> = await res.json();
       if (!res.ok || !data.success) {
@@ -123,20 +125,53 @@ export function AddAdjustmentDialog({ bill, isOpen, onClose, onSuccess }: AddAdj
             </button>
           </div>
 
-          {/* Description */}
+          {/* Category */}
           <div className="space-y-2">
             <label className="text-xs font-semibold text-surface-muted uppercase">
-              Description
+              Category
             </label>
-            <input
-              type="text"
-              required
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={type === "MANUAL_CHARGE" ? "e.g. Controller rental" : "e.g. Apology credit"}
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as any)}
               className="w-full rounded-lg border border-surface-border bg-surface px-4 py-2 text-sm text-white focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-            />
+            >
+              <option value="ADJUSTMENTS">Adjustments</option>
+              <option value="FRIENDS">Friends</option>
+              <option value="ROUND_OFF">Round Off</option>
+              <option value="OTHERS">Others</option>
+            </select>
           </div>
+
+          {/* Description */}
+          {(category === "OTHERS" || description.length > 0) && (
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-surface-muted uppercase">
+                Description {category !== "OTHERS" && "(Optional)"}
+              </label>
+              <input
+                type="text"
+                required={category === "OTHERS"}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder={category === "OTHERS" ? "Specify description..." : "Additional details (optional)"}
+                className="w-full rounded-lg border border-surface-border bg-surface px-4 py-2 text-sm text-white focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              />
+            </div>
+          )}
+          {category !== "OTHERS" && description.length === 0 && (
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-surface-muted uppercase">
+                Description (Optional)
+              </label>
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Additional details (optional)"
+                className="w-full rounded-lg border border-surface-border bg-surface px-4 py-2 text-sm text-white focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              />
+            </div>
+          )}
 
           {/* Amount */}
           <div className="space-y-2">
