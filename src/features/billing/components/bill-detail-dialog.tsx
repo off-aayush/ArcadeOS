@@ -93,6 +93,7 @@ export function BillDetailDialog({
   const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
   const [isAdjustmentDialogOpen, setIsAdjustmentDialogOpen] = useState(false);
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  const [isSettling, setIsSettling] = useState(false);
   const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
 
   // ── Customer Search & Attach State ──
@@ -149,6 +150,24 @@ export function BillDetailDialog({
   const handleCustomerCreated = async (customer: CustomerListItem) => {
     setIsCustomerCreateOpen(false);
     await handleAttachCustomer(customer.id);
+  };
+
+  const handleSettle = async () => {
+    if (!bill || isSettling) return;
+    setIsSettling(true);
+    try {
+      const res = await fetch(`/api/bills/${bill.id}/settle`, { method: "POST" });
+      const data: ApiResponse<BillWithDetails> = await res.json();
+      if (!res.ok || !data.success) throw new Error("error" in data ? data.error : "Failed to settle bill");
+      setBill(data.data);
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
+      queryClient.invalidateQueries({ queryKey: ["bill", bill.id] });
+      toast.add({ title: "Bill Settled", description: "Zero-value bill marked paid.", type: "success" });
+    } catch (err: any) {
+      toast.add({ title: "Error", description: err.message, type: "error" });
+    } finally {
+      setIsSettling(false);
+    }
   };
 
   // For FOOD/DRINK items in a session-linked bill, we allow qty edit. For standalone bills (no session), editing is disabled to avoid double-deductions.
@@ -250,6 +269,10 @@ export function BillDetailDialog({
       if (initialBill) {
         setBill(initialBill);
         setGenerateError(null);
+        fetch(`/api/bills/${initialBill.id}`, { cache: "no-store" })
+          .then((res) => res.json())
+          .then((data: ApiResponse<BillWithDetails>) => { if (data.success) setBill(data.data); })
+          .catch(console.error);
       } else if (sessionId && !bill) {
         handleGenerate();
       }
@@ -727,8 +750,20 @@ export function BillDetailDialog({
                   {formatCurrency(Number(bill.grandTotal))}
                 </span>
               </div>
-              {Number(bill.amountPaid) > 0 && (
-                <>
+              <div className="flex justify-between gap-4 text-sm text-surface-muted">
+                <span>Payment Modes</span>
+                <span className="text-right font-mono text-white">
+                  {bill.payments.filter((payment) => payment.status === "COMPLETED").length === 0
+                    ? "No payment recorded"
+                    : Object.entries(bill.payments.filter((payment) => payment.status === "COMPLETED")
+                        .reduce<Record<string, number>>((totals, payment) => {
+                          totals[payment.method] = (totals[payment.method] ?? 0) + Number(payment.amount);
+                          return totals;
+                        }, {}))
+                        .map(([method, amount]) => `${method === "CASH" ? "Cash" : method === "COMPLIMENTARY" ? "Complimentary" : method === "WALLET" ? "Wallet" : method} ${formatCurrency(amount)}`)
+                        .join(" · ")}
+                </span>
+              </div>
                   <div className="flex justify-between text-sm text-success">
                     <span>Amount Paid</span>
                     <span className="font-mono">
@@ -741,8 +776,6 @@ export function BillDetailDialog({
                       {formatCurrency(Number(bill.amountDue))}
                     </span>
                   </div>
-                </>
-              )}
             </div>
 
             {/* Paid stamp */}
@@ -810,6 +843,11 @@ export function BillDetailDialog({
                 Record Payment
               </Button>
             )}
+            {bill && bill.status === "PENDING" && Number(bill.grandTotal) === 0 && Number(bill.amountDue) === 0 && (
+              <Button onClick={handleSettle} disabled={isSettling} className="bg-accent hover:bg-accent/80 text-white font-semibold">
+                {isSettling ? "Settling..." : "Mark as Paid"}
+              </Button>
+            )}
             {bill && (
               <Button
                 onClick={handlePrint}
@@ -832,6 +870,7 @@ export function BillDetailDialog({
           onSuccess={(updatedBill) => {
             setBill(updatedBill);
             queryClient.invalidateQueries({ queryKey: ["bills"] });
+            queryClient.invalidateQueries({ queryKey: ["bill", updatedBill.id] });
             queryClient.invalidateQueries({ queryKey: ["customers"] });
           }}
         />
@@ -864,14 +903,21 @@ export function BillDetailDialog({
       )}
 
       {/* Order Dialog */}
-      {bill && bill.session && (
+      {bill && (
         <OrderDialog
-          sessionId={bill.session.id}
-          sessionLabel={bill.session.customer?.name ?? bill.session.station.name}
+          sessionId={bill.session?.id}
+          billId={bill.session ? undefined : bill.id}
+          sessionLabel={bill.session ? (bill.session.customer?.name ?? bill.session.station.name) : (bill.customer?.name ?? "Inventory Sale")}
           isOpen={isOrderDialogOpen}
+          onBillChange={(updatedBill) => {
+            setBill(updatedBill);
+            queryClient.invalidateQueries({ queryKey: ["bills"] });
+            queryClient.invalidateQueries({ queryKey: ["bill", updatedBill.id] });
+          }}
           onClose={() => {
             setIsOrderDialogOpen(false);
             queryClient.invalidateQueries({ queryKey: ["bills"] });
+            queryClient.invalidateQueries({ queryKey: ["bill", bill.id] });
             // Re-fetch the bill to update local state with new items
             fetch(`/api/bills/${bill.id}`)
               .then(res => res.json())
