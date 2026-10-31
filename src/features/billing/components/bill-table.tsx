@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BillListItem, BillWithDetails } from "../types";
 import { BillDetailDialog } from "./bill-detail-dialog";
@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Eye,
   ShoppingCart,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -53,11 +54,21 @@ function BillStatusBadge({ status }: { status: string }) {
 }
 
 export function BillTable() {
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
 
   const [page, setPage] = useState(1);
   const pageSize = 20;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const handleStatusFilterChange = (val: string) => {
     setStatusFilter(val);
@@ -65,11 +76,12 @@ export function BillTable() {
   };
 
   const params = new URLSearchParams({ status: statusFilter });
+  if (debouncedSearch) params.set("search", debouncedSearch);
   params.set("page", page.toString());
   params.set("pageSize", pageSize.toString());
 
   const { data, isLoading, isError, error, refetch } = useQuery<ApiResponse<ListResult>>({
-    queryKey: ["bills", statusFilter, page],
+    queryKey: ["bills", statusFilter, debouncedSearch, page],
     queryFn: async () => {
       const res = await fetch(`/api/bills?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to load bills");
@@ -97,7 +109,18 @@ export function BillTable() {
   return (
     <div className="flex flex-col gap-4">
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[220px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-surface-muted" />
+          <input
+            type="search"
+            aria-label="Search bills by customer name"
+            placeholder="Search by customer name..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="w-full rounded-lg border border-surface-border bg-surface pl-9 pr-4 py-2 text-sm text-white placeholder:text-surface-muted focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+          />
+        </div>
         <select
           value={statusFilter}
           onChange={(e) => handleStatusFilterChange(e.target.value)}
@@ -159,7 +182,7 @@ export function BillTable() {
                     <td colSpan={7} className="py-16">
                       <EmptyState
                         title="No Bills Found"
-                        description="Generate bills from completed sessions."
+                        description={debouncedSearch ? `No bills found for "${debouncedSearch}".` : "Generate bills from completed sessions or create an inventory sale."}
                         icon={<Receipt className="h-8 w-8 text-surface-muted" />}
                       />
                     </td>

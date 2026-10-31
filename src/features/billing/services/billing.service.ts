@@ -232,15 +232,22 @@ export class BillingService {
   }
 
   /**
-   * Paginated list of bills with optional status filter.
+   * Paginated list of bills with optional status and customer-name filters.
    */
   static async getAll(
     params: BillQueryParams = {}
   ): Promise<{ bills: BillListItem[]; total: number }> {
-    const { status = "ALL", page = 1, pageSize = DEFAULT_PAGE_SIZE } = params;
+    const { search, status = "ALL", page = 1, pageSize = DEFAULT_PAGE_SIZE } = params;
 
     const where: Prisma.BillWhereInput = {};
     if (status !== "ALL") where.status = status as BillStatus;
+    if (search?.trim()) {
+      const name = { contains: search.trim(), mode: "insensitive" as const };
+      where.OR = [
+        { customer: { is: { name } } },
+        { session: { is: { customer: { is: { name } } } } },
+      ];
+    }
 
     const [bills, total] = await Promise.all([
       prisma.bill.findMany({

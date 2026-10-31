@@ -32,6 +32,7 @@ export interface GenerateBillInput {
 }
 
 export interface BillQueryParams {
+  search?: string;
   status?: BillStatus | "ALL";
   page?: number;
   pageSize?: number;

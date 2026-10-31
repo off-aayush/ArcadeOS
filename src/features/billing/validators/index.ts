@@ -7,6 +7,7 @@ export const generateBillSchema = z.object({
 
 // ── Query params for listing bills ────────────────────────────────────────────
 export const billQuerySchema = z.object({
+  search: z.string().trim().max(100, "Search is too long").optional(),
   status: z
     .enum(["ALL", "DRAFT", "PENDING", "PAID", "PARTIALLY_PAID", "VOIDED"])
     .optional()
