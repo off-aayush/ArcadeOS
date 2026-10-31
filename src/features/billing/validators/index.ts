@@ -20,7 +20,9 @@ export type BillQueryInput = z.infer<typeof billQuerySchema>;
 
 // ── Record a payment against a bill ──────────────────────────────────────────
 export const recordPaymentSchema = z.object({
-  amount: z.coerce.number().positive("Amount must be greater than 0"),
+  amount: z.coerce.number().positive("Amount must be greater than 0")
+    .refine((amount) => Math.abs(amount * 100 - Math.round(amount * 100)) < 1e-8,
+      "Payment amount must have at most two decimal places"),
   method: z.enum(["CASH", "UPI", "CARD", "WALLET", "COMPLIMENTARY"]),
   reference: z.string().optional(),
   notes: z.string().optional(),
@@ -58,6 +60,10 @@ export type AddAdjustmentInput = z.infer<typeof addAdjustmentSchema>;
 export const addOrderItemSchema = z.object({
   foodItemId: z.string().min(1, "Food item ID is required"),
   quantity: z.coerce.number().int().min(1, "Quantity must be at least 1"),
+});
+
+export const addStandaloneOrderItemSchema = addOrderItemSchema.extend({
+  idempotencyKey: z.string().uuid("A unique request key is required"),
 });
 
 export type AddOrderItemInput = z.infer<typeof addOrderItemSchema>;
