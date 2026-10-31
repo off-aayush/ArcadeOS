@@ -164,3 +164,30 @@ Next logical steps for the project owner:
 1. Conduct end-to-end user testing.
 2. Deploy to a staging environment.
 3. Review production environment variable checklist in `README.md`.
+
+---
+
+## 2026-10-31 — Billing and inventory fixes
+
+### Root causes and changes
+
+- Bill detail already loaded `Payment[]`, but the invoice rendered only the denormalized paid amount. It now groups completed payment records by `PaymentMethod` and shows each mode and amount, plus `No payment recorded` when appropriate. Paid and due totals are always visible. Reopening fetches fresh bill detail.
+- The payment endpoint correctly required a positive amount, leaving zero-total `PENDING` bills without a settlement path. `POST /api/bills/[id]/settle` explicitly changes an eligible zero-value pending bill to `PAID` with `paidAt`, no fabricated payment, and an `UPDATE` audit entry. Repeated settlement is rejected. Payments retain positive amount validation and now reject fractions of a paise.
+- The Add Item button used `OrderDialog`, but that dialog only mounted for session-linked bills. It now mounts for standalone sales and calls `POST /api/bills/[id]/orders`, which updates the same unpaid bill in a serializable transaction. The existing catalogue, quantity selector and stock checks are reused. Conditional stock decrements prevent overselling. The invoice refreshes after each addition. Session orders retain their existing routes.
+- Shared recalculation clamps totals at zero and refuses a result below an amount already paid. Manual credits above the remaining payable amount are rejected. Initial standalone discounts are capped to the subtotal.
+
+### Migration
+
+- New migration `20261031000000_bill_item_add_idempotency` adds nullable `BillItem.idempotencyKey` and a unique index. Historical rows remain null and unchanged. Each standalone item submission uses a stable key, so a replay returns the current bill without another line item or stock deduction. Apply with `npx prisma migrate deploy` before running the updated app against an existing database. No existing database was migrated during this task.
+
+### Verification
+
+- `npx prisma validate`, `npx prisma generate`, `npm run type-check`, and `npm run build` passed.
+- `scripts/verify-billing.ts` created an isolated PostgreSQL database, applied all 11 migrations, exercised the billing service and the item-add API route, then dropped the test database. It verified a single full UPI payment, mixed UPI/Cash payments and balance, an unpaid bill, a discounted zero-total settlement with no payment record, duplicate settlement rejection, multiple item additions to the same standalone bill, idempotent replay, concurrent stock claims, insufficient stock, paid-bill rejection, excessive credit rejection, and a session-bill item addition. All assertions passed.
+- Read-only inspection of the configured local database found existing bills and payments; no existing bill, payment, stock quantity, session, or customer record was changed.
+
+### Known issues and next step
+
+- Browser interaction and printed invoice layout were not manually checked in this run. Verify the Billing modal and printout in staging after deploying the migration.
+- The standalone Add Item modal displays repeated additions of the same product as separate invoice lines so each submission retains its own replay key and price snapshot.
+- Next: apply the additive migration in the target environment, then smoke-test the Billing modal, zero-value action, and standalone sale flow with a staff account.
