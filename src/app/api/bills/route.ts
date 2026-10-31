@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const rawParams = {
+      search: searchParams.get("search") || undefined,
       status: searchParams.get("status") || "ALL",
       page: searchParams.get("page") || "1",
       pageSize: searchParams.get("pageSize") || "20",
