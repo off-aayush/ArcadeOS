@@ -23,7 +23,9 @@ export const recordPaymentSchema = z.object({
   amount: z.coerce.number().positive("Amount must be greater than 0")
     .refine((amount) => Math.abs(amount * 100 - Math.round(amount * 100)) < 1e-8,
       "Payment amount must have at most two decimal places"),
-  method: z.enum(["CASH", "UPI", "CARD", "WALLET", "COMPLIMENTARY"]),
+  method: z.enum(["CASH", "UPI", "CARD", "WALLET", "COMPLIMENTARY"], {
+    error: "Select a payment method",
+  }),
   reference: z.string().optional(),
   notes: z.string().optional(),
 });

@@ -183,7 +183,7 @@ Next logical steps for the project owner:
 ### Verification
 
 - `npx prisma validate`, `npx prisma generate`, `npm run type-check`, and `npm run build` passed.
-- `scripts/verify-billing.ts` created an isolated PostgreSQL database, applied all 11 migrations, exercised the billing service and the item-add API route, then dropped the test database. It verified a single full UPI payment, mixed UPI/Cash payments and balance, an unpaid bill, a discounted zero-total settlement with no payment record, duplicate settlement rejection, multiple item additions to the same standalone bill, idempotent replay, concurrent stock claims, insufficient stock, paid-bill rejection, excessive credit rejection, and a session-bill item addition. All assertions passed.
+- A temporary verification harness created an isolated PostgreSQL database, applied all 11 migrations, exercised the billing service and the item-add API route, then dropped the test database. It verified a single full UPI payment, mixed UPI/Cash payments and balance, an unpaid bill, a discounted zero-total settlement with no payment record, duplicate settlement rejection, multiple item additions to the same standalone bill, idempotent replay, concurrent stock claims, insufficient stock, paid-bill rejection, excessive credit rejection, and a session-bill item addition. All assertions passed. The temporary harness was removed after verification.
 - Read-only inspection of the configured local database found existing bills and payments; no existing bill, payment, stock quantity, session, or customer record was changed.
 
 ### Known issues and next step
