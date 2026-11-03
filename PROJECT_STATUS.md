@@ -164,3 +164,14 @@ Next logical steps for the project owner:
 1. Conduct end-to-end user testing.
 2. Deploy to a staging environment.
 3. Review production environment variable checklist in `README.md`.
+
+---
+
+## Customer Visit Calendar Heatmap (2026-11-03)
+
+- The Customers table's Visits count now comes from completed session records. Each completed session counts once, including unpaid completed sessions; active, paused, and cancelled sessions are excluded. The stored `Customer.totalVisits` field is still incremented on first payment by the existing billing workflow, so it can differ from this visit-based display count.
+- Hover, focus, or tap a Visits count to load that customer's full completed-session history on demand. The popup uses a portal and viewport-aware positioning, with loading, empty, retry, Escape, outside-click, keyboard date navigation, year navigation, date/count details, and a purple intensity legend. React Query caches each customer's history for the existing customer stale time.
+- The visit-history API groups sessions by `startTime` date in the configured parlour timezone. It returns all years; the calendar shows one year at a time. No schema or migration changes.
+- Files: `src/features/customers/services/customer.service.ts`, `src/app/api/customers/[id]/visits/route.ts`, `src/features/customers/components/visit-heatmap.tsx`, `src/features/customers/components/customer-table.tsx`.
+- Verification: TypeScript check and production build passed. Read-only PostgreSQL checks covered zero visits, one visit, multiple sessions on one date, dates across months/years, active/paused/cancelled exclusion, UTC-to-parlour-day conversion, and equality of grouped totals and completed-session counts. Live customer service checks covered search, pagination, list/heatmap total agreement, and a missing customer. Server-rendered calendar checks covered empty, one-visit, multiple-visit, and multi-year output and intensity.
+- Known verification gap: automated browser interaction and popup placement could not be exercised because the computer-use tool stopped when it could not verify the Chrome URL. Hover/focus/tap, viewport edges, and touch behavior still need a manual browser check.
