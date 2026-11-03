@@ -593,7 +593,7 @@ export function BillDetailDialog({
                   <div className="flex flex-col">
                     <span className="text-xs text-surface-muted">Date</span>
                     <span className="font-medium text-white">
-                      {formatDateTime(bill.createdAt)}
+                      {formatDateTime(session?.createdAt ?? bill.createdAt)}
                     </span>
                   </div>
                 </div>
