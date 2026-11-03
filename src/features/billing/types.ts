@@ -20,6 +20,7 @@ export type BillWithDetails = Bill & {
 // ── Bill list item (paginated table row) ─────────────────────────────────────
 export type BillListItem = Pick<Bill, "id" | "billNumber" | "status" | "grandTotal" | "amountPaid" | "amountDue" | "createdAt" | "paidAt"> & {
   session: {
+    createdAt: Session["createdAt"];
     station: Pick<Station, "id" | "name">;
     customer: Pick<Customer, "id" | "name"> | null;
   } | null;
