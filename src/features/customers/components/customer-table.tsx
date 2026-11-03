@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { Users, Search, Phone, Mail, Crown, Trash2, Edit2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CustomerVisitPopup } from "./visit-heatmap";
 
 interface CustomerTableProps {
   onEdit?: (customer: CustomerListItem) => void;
@@ -202,7 +203,11 @@ export function CustomerTable({ onEdit }: CustomerTableProps) {
                         </td>
                         {/* Visits */}
                         <td className="px-4 py-3 text-right font-mono text-white">
-                          {customer.totalVisits}
+                          <CustomerVisitPopup
+                            customerId={customer.id}
+                            customerName={customer.name}
+                            totalVisits={customer.totalVisits}
+                          />
                         </td>
                         {/* Total Spend */}
                         <td className="px-4 py-3 text-right font-mono font-semibold text-success">

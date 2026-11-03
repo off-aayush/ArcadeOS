@@ -52,7 +52,66 @@ export class CustomerService {
       prisma.customer.count({ where: whereClause }),
     ]);
 
-    return { customers: customers as CustomerListItem[], total };
+    const visitCounts = customers.length
+      ? await prisma.session.groupBy({
+          by: ["customerId"],
+          where: {
+            customerId: { in: customers.map((customer) => customer.id) },
+            status: "COMPLETED",
+          },
+          _count: { _all: true },
+        })
+      : [];
+    const countsByCustomer = new Map(
+      visitCounts.map((item) => [item.customerId, item._count._all])
+    );
+
+    return {
+      customers: customers.map((customer) => ({
+        ...customer,
+        totalVisits: countsByCustomer.get(customer.id) ?? 0,
+      })) as CustomerListItem[],
+      total,
+    };
+  }
+
+  /** Groups every completed session by its start date in the parlour timezone. */
+  static async getVisitHistory(id: string) {
+    const customer = await prisma.customer.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true },
+    });
+    if (!customer) return null;
+
+    const profile = await prisma.parlourProfile.findUnique({
+      where: { id: "singleton" },
+      select: { timezone: true },
+    });
+    const requestedTimezone = profile?.timezone || "Asia/Kolkata";
+    let timezone = requestedTimezone;
+    try {
+      new Intl.DateTimeFormat("en", { timeZone: timezone });
+    } catch {
+      timezone = "Asia/Kolkata";
+    }
+
+    const days = await prisma.$queryRaw<{ date: string; count: number }[]> `
+      SELECT to_char("startTime" AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}, 'YYYY-MM-DD') AS date,
+             COUNT(*)::int AS count
+      FROM "sessions"
+      WHERE "customerId" = ${id} AND "status" = 'COMPLETED'
+      GROUP BY 1
+      ORDER BY 1
+    `;
+    return {
+      days,
+      total: days.reduce((sum, day) => sum + day.count, 0),
+      timezone,
+      currentYear: Number(
+        new Intl.DateTimeFormat("en", { timeZone: timezone, year: "numeric" })
+          .format(new Date())
+      ),
+    };
   }
 
   /**
