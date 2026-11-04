@@ -79,6 +79,16 @@ async function nextBillSequence(): Promise<number> {
   return isNaN(lastSeq) ? 1 : lastSeq + 1;
 }
 
+async function serializableTransaction<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await prisma.$transaction(work, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2034" || attempt >= 2) throw error;
+    }
+  }
+}
+
 export class BillingService {
   /**
    * Generate/finalise an invoice for a completed session.
@@ -222,15 +232,22 @@ export class BillingService {
   }
 
   /**
-   * Paginated list of bills with optional status filter.
+   * Paginated list of bills with optional status and customer-name filters.
    */
   static async getAll(
     params: BillQueryParams = {}
   ): Promise<{ bills: BillListItem[]; total: number }> {
-    const { status = "ALL", page = 1, pageSize = DEFAULT_PAGE_SIZE } = params;
+    const { search, status = "ALL", page = 1, pageSize = DEFAULT_PAGE_SIZE } = params;
 
     const where: Prisma.BillWhereInput = {};
     if (status !== "ALL") where.status = status as BillStatus;
+    if (search?.trim()) {
+      const name = { contains: search.trim(), mode: "insensitive" as const };
+      where.OR = [
+        { customer: { is: { name } } },
+        { session: { is: { customer: { is: { name } } } } },
+      ];
+    }
 
     const [bills, total] = await Promise.all([
       prisma.bill.findMany({
@@ -285,10 +302,11 @@ export class BillingService {
 
       // 3. Deduct stock atomically
       for (const item of items) {
-        await tx.foodItem.update({
-          where: { id: item.foodItemId },
+        const claimed = await tx.foodItem.updateMany({
+          where: { id: item.foodItemId, deletedAt: null, isAvailable: true, stock: { gte: item.quantity } },
           data: { stock: { decrement: item.quantity } },
         });
+        if (claimed.count !== 1) throw new Error("Insufficient stock or unavailable product");
       }
 
       // 4. Calculate subtotal from items
@@ -324,6 +342,7 @@ export class BillingService {
           } else {
             discountAmount = Number(discount.value);
           }
+          discountAmount = Math.min(subtotal, Math.max(0, discountAmount));
           discountItemData = {
             type: "DISCOUNT",
             description: `Discount: ${discount.name}`,
@@ -338,7 +357,7 @@ export class BillingService {
       // 6. Calculate grand total with rounding
       const preRoundTotal = subtotal - discountAmount;
       const grandTotal = Math.max(0, roundBill(preRoundTotal));
-      const roundingAmount = getRoundingDiff(preRoundTotal);
+      const roundingAmount = grandTotal - preRoundTotal;
 
       // 7. Generate bill number
       const sequence = await nextBillSequence();
@@ -407,14 +426,14 @@ export class BillingService {
   static async recordPayment(billId: string, input: RecordPaymentInput): Promise<BillWithDetails> {
     const actorId = await getSystemUserId(); // Simplified for now (ideally from auth session)
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await serializableTransaction(async (tx) => {
       const bill = await tx.bill.findUnique({ where: { id: billId } });
 
       if (!bill) {
         throw new Error("Bill not found");
       }
 
-      if (Number(bill.amountDue) <= 0) {
+      if (bill.status === "PAID" || bill.status === "VOIDED" || Number(bill.amountDue) <= 0) {
         throw new Error("Bill is already fully paid");
       }
 
@@ -487,6 +506,27 @@ export class BillingService {
     return result as BillWithDetails;
   }
 
+  static async settleZeroBill(billId: string): Promise<BillWithDetails> {
+    const actorId = await getSystemUserId();
+    const result = await serializableTransaction(async (tx) => {
+      const bill = await tx.bill.findUnique({ where: { id: billId } });
+      if (!bill) throw new Error("Bill not found");
+      if (bill.status !== "PENDING" || Number(bill.grandTotal) !== 0 ||
+          Number(bill.amountDue) !== 0 || Number(bill.amountPaid) !== 0) {
+        throw new Error("Only an unsettled zero-value bill can be marked paid");
+      }
+      const changed = await tx.bill.updateMany({
+        where: { id: billId, status: "PENDING", grandTotal: 0, amountDue: 0, amountPaid: 0 },
+        data: { status: "PAID", paidAt: new Date() },
+      });
+      if (changed.count !== 1) throw new Error("Bill was already settled");
+      return tx.bill.findUniqueOrThrow({ where: { id: billId }, include: BILL_DETAIL_INCLUDE });
+    });
+    await AuditLogService.log("UPDATE", "Bill", billId, actorId, { action: "ZERO_VALUE_SETTLEMENT" });
+    emitSocketEvent("invalidate_bills");
+    return result as BillWithDetails;
+  }
+
   // ── Shared: recalculate bill totals from line items ─────────────────────────
   private static async recalculateBillTotals(
     tx: Prisma.TransactionClient,
@@ -527,8 +567,8 @@ export class BillingService {
 
     // Recompute grand total before rounding
     const preRoundTotal = subtotal - discountTotal + adjustmentTotal;
-    const grandTotal = roundBill(preRoundTotal);
-    const newRounding = getRoundingDiff(preRoundTotal);
+    const grandTotal = Math.max(0, roundBill(preRoundTotal));
+    const newRounding = grandTotal - preRoundTotal;
 
     // Insert new rounding item if non-zero
     if (newRounding !== 0) {
@@ -547,6 +587,7 @@ export class BillingService {
     // Fetch current bill for amountPaid
     const currentBill = await tx.bill.findUniqueOrThrow({ where: { id: billId } });
     const amountPaid = Number(currentBill.amountPaid);
+    if (grandTotal < amountPaid) throw new Error("Bill total cannot be below the amount already paid");
     const amountDue = grandTotal - amountPaid;
 
     await tx.bill.update({
@@ -669,6 +710,8 @@ export class BillingService {
 
       const isCredit = input.type === "MANUAL_CREDIT";
       const amount = Math.round(input.amount * 100) / 100;
+      const payable = Number(bill.subtotal) - Number(bill.discountTotal) + Number(bill.adjustmentTotal);
+      if (isCredit && amount > payable) throw new Error("Credit exceeds the remaining bill total");
 
       // Format description based on category
       const categoryLabels: Record<string, string> = {
@@ -748,6 +791,53 @@ export class BillingService {
   // ORDER ITEM MANAGEMENT (pre-session food/drink ordering)
   // ────────────────────────────────────────────────────────────────────────────
 
+  static async addStandaloneItem(billId: string, foodItemId: string, quantity: number, idempotencyKey: string): Promise<BillWithDetails> {
+    if (!Number.isSafeInteger(quantity) || quantity < 1) throw new Error("Quantity must be at least 1");
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
+      throw new Error("A valid request key is required");
+    }
+    const result = await serializableTransaction(async (tx) => {
+      const previous = await tx.billItem.findUnique({ where: { idempotencyKey } });
+      if (previous) {
+        if (previous.billId !== billId || previous.foodItemId !== foodItemId || Number(previous.quantity) !== quantity) {
+          throw new Error("Request key was already used for a different item");
+        }
+        return tx.bill.findUniqueOrThrow({ where: { id: billId }, include: BILL_DETAIL_INCLUDE });
+      }
+      const bill = await tx.bill.findUnique({ where: { id: billId } });
+      if (!bill) throw new Error("Bill not found");
+      if (bill.sessionId || bill.status !== "PENDING" || Number(bill.amountPaid) !== 0) {
+        throw new Error("Only unpaid inventory-sale bills can accept items");
+      }
+      const foodItem = await tx.foodItem.findFirst({
+        where: { id: foodItemId, deletedAt: null, isAvailable: true },
+      });
+      if (!foodItem) throw new Error("Product not found or unavailable");
+      const claimed = await tx.foodItem.updateMany({
+        where: { id: foodItemId, deletedAt: null, isAvailable: true, stock: { gte: quantity } },
+        data: { stock: { decrement: quantity } },
+      });
+      if (claimed.count !== 1) throw new Error("Insufficient stock");
+
+      await tx.billItem.create({
+        data: {
+          billId,
+          idempotencyKey,
+          type: foodItem.category === "BEVERAGES_HOT" || foodItem.category === "BEVERAGES_COLD" ? "DRINK" : "FOOD",
+          description: foodItem.name,
+          quantity,
+          unitPrice: foodItem.price,
+          totalPrice: Number(foodItem.price) * quantity,
+          foodItemId,
+        },
+      });
+      await BillingService.recalculateBillTotals(tx, billId);
+      return tx.bill.findUniqueOrThrow({ where: { id: billId }, include: BILL_DETAIL_INCLUDE });
+    });
+    emitSocketEvent("invalidate_bills");
+    return result as BillWithDetails;
+  }
+
   /**
    * Add a food/drink item to an ACTIVE or PAUSED session.
    * Creates a DRAFT bill for the session if one does not yet exist.
@@ -759,7 +849,7 @@ export class BillingService {
     foodItemId: string,
     quantity: number
   ): Promise<BillWithDetails> {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await serializableTransaction(async (tx) => {
       // 1. Validate session
       const session = await tx.session.findUnique({
         where: { id: sessionId },
@@ -860,10 +950,11 @@ export class BillingService {
       }
 
       // 5. Decrement stock
-      await tx.foodItem.update({
-        where: { id: foodItemId },
+      const claimed = await tx.foodItem.updateMany({
+        where: { id: foodItemId, deletedAt: null, isAvailable: true, stock: { gte: quantity } },
         data: { stock: { decrement: quantity } },
       });
+      if (claimed.count !== 1) throw new Error("Insufficient stock");
 
       // 6. Recalculate bill totals
       await BillingService.recalculateBillTotals(tx, billId);

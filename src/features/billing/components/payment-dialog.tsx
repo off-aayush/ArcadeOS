@@ -13,7 +13,7 @@ import { toast } from "@/components/ui/toast";
 import { ApiResponse } from "@/types";
 import { BillWithDetails, RecordPaymentInput } from "../types";
 import { Coins, Loader2 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 interface PaymentDialogProps {
   bill: BillWithDetails;
@@ -25,7 +25,8 @@ interface PaymentDialogProps {
 export function PaymentDialog({ bill, isOpen, onClose, onSuccess }: PaymentDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [amount, setAmount] = useState<string>(bill.amountDue.toString());
-  const [method, setMethod] = useState<RecordPaymentInput["method"]>("CASH");
+  const [method, setMethod] = useState<RecordPaymentInput["method"] | "">("");
+  const [showMethodError, setShowMethodError] = useState(false);
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -33,7 +34,8 @@ export function PaymentDialog({ bill, isOpen, onClose, onSuccess }: PaymentDialo
   useEffect(() => {
     if (isOpen) {
       setAmount(bill.amountDue.toString());
-      setMethod("CASH");
+      setMethod("");
+      setShowMethodError(false);
       setReference("");
       setNotes("");
     }
@@ -47,6 +49,12 @@ export function PaymentDialog({ bill, isOpen, onClose, onSuccess }: PaymentDialo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!method) {
+      setShowMethodError(true);
+      toast.add({ title: "Payment method required", description: "Select a payment method before recording the payment.", type: "error" });
+      return;
+    }
+
     const parsedAmount = parseFloat(amount);
     
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -129,21 +137,38 @@ export function PaymentDialog({ bill, isOpen, onClose, onSuccess }: PaymentDialo
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-surface-muted uppercase">
-              Payment Method
+            <label htmlFor="payment-method" className={cn("text-xs font-semibold uppercase", showMethodError && !method ? "text-danger" : "text-surface-muted")}>
+              Payment Method *
             </label>
             <select
-              required
+              id="payment-method"
+              aria-required="true"
+              aria-invalid={showMethodError && !method}
+              aria-describedby={showMethodError && !method ? "payment-method-hint" : undefined}
               value={method}
-              onChange={(e) => setMethod(e.target.value as RecordPaymentInput["method"])}
-              className="w-full rounded-lg border border-surface-border bg-surface px-4 py-2 text-white focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              onChange={(e) => {
+                setMethod(e.target.value as RecordPaymentInput["method"] | "");
+                setShowMethodError(false);
+              }}
+              className={cn(
+                "w-full rounded-lg border bg-surface px-4 py-2 text-white focus:outline-none focus:ring-1",
+                showMethodError && !method
+                  ? "border-danger/40 shadow-glow-danger focus:border-danger/50 focus:ring-danger/30"
+                  : "border-surface-border focus:border-brand focus:ring-brand"
+              )}
             >
+              <option value="">None</option>
               <option value="CASH">Cash</option>
               <option value="UPI">UPI</option>
               <option value="CARD">Card</option>
               <option value="WALLET">Wallet</option>
               <option value="COMPLIMENTARY">Complimentary</option>
             </select>
+            {showMethodError && !method && (
+              <p id="payment-method-hint" className="text-xs text-danger" role="alert">
+                Select a payment method before recording the payment.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
