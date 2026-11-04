@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -30,10 +30,12 @@ import { cn } from "@/lib/utils";
 import { FoodCategory } from "@prisma/client";
 
 interface OrderDialogProps {
-  sessionId: string;
+  sessionId?: string;
+  billId?: string;
   sessionLabel: string;
   isOpen: boolean;
   onClose: () => void;
+  onBillChange?: (bill: BillWithDetails) => void;
 }
 
 const CATEGORY_LABELS: Record<FoodCategory | "ALL", string> = {
@@ -48,8 +50,10 @@ const CATEGORY_LABELS: Record<FoodCategory | "ALL", string> = {
 
 type FoodResult = { items: FoodListItem[]; total: number };
 
-export function OrderDialog({ sessionId, sessionLabel, isOpen, onClose }: OrderDialogProps) {
+export function OrderDialog({ sessionId, billId, sessionLabel, isOpen, onClose, onBillChange }: OrderDialogProps) {
   const queryClient = useQueryClient();
+  const submitting = useRef(new Set<string>());
+  const requestKeys = useRef(new Map<string, { key: string; quantity: number }>());
 
   // Current draft bill state
   const [bill, setBill] = useState<BillWithDetails | null>(null);
@@ -71,7 +75,7 @@ export function OrderDialog({ sessionId, sessionLabel, isOpen, onClose }: OrderD
   const fetchBill = async () => {
     setIsBillLoading(true);
     try {
-      const res = await fetch(API_ROUTES.orders(sessionId));
+      const res = await fetch(billId ? `/api/bills/${billId}` : API_ROUTES.orders(sessionId!));
       const data: ApiResponse<BillWithDetails | null> = await res.json();
       if (data.success) setBill(data.data);
     } catch {
@@ -116,19 +120,28 @@ export function OrderDialog({ sessionId, sessionLabel, isOpen, onClose }: OrderD
 
   // Add item to session order
   const handleAdd = async (product: FoodListItem) => {
-    const qty = quantities[product.id] ?? 1;
+    if (submitting.current.size > 0) return;
+    submitting.current.add(product.id);
+    const requestId = `${billId}:${product.id}`;
+    const pending = billId ? requestKeys.current.get(requestId) : undefined;
+    const qty = pending?.quantity ?? quantities[product.id] ?? 1;
+    if (billId && !pending) requestKeys.current.set(requestId, { key: crypto.randomUUID(), quantity: qty });
     setLoadingItems((p) => ({ ...p, [product.id]: true }));
     try {
-      const res = await fetch(API_ROUTES.orders(sessionId), {
+      const res = await fetch(billId ? `/api/bills/${billId}/orders` : API_ROUTES.orders(sessionId!), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ foodItemId: product.id, quantity: qty }),
+        body: JSON.stringify({ foodItemId: product.id, quantity: qty,
+          ...(billId ? { idempotencyKey: requestKeys.current.get(requestId)!.key } : {}) }),
       });
       const data: ApiResponse<BillWithDetails> = await res.json();
       if (!res.ok || !data.success) {
+        if (res.status >= 400 && res.status < 500) requestKeys.current.delete(requestId);
         throw new Error("error" in data ? data.error : "Failed to add item");
       }
+      requestKeys.current.delete(requestId);
       setBill(data.data);
+      onBillChange?.(data.data);
       // Refresh stock display
       fetchProducts();
       queryClient.invalidateQueries({ queryKey: ["stations"] });
@@ -137,6 +150,7 @@ export function OrderDialog({ sessionId, sessionLabel, isOpen, onClose }: OrderD
     } catch (err: any) {
       toast.add({ title: "Error", description: err.message, type: "error" });
     } finally {
+      submitting.current.delete(product.id);
       setLoadingItems((p) => ({ ...p, [product.id]: false }));
     }
   };
@@ -149,7 +163,7 @@ export function OrderDialog({ sessionId, sessionLabel, isOpen, onClose }: OrderD
     }
     setLoadingItems((p) => ({ ...p, [billItemId]: true }));
     try {
-      const res = await fetch(API_ROUTES.orderItem(sessionId, billItemId), {
+      const res = await fetch(API_ROUTES.orderItem(sessionId!, billItemId), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ quantity: newQty }),
@@ -172,7 +186,7 @@ export function OrderDialog({ sessionId, sessionLabel, isOpen, onClose }: OrderD
   const handleRemove = async (billItemId: string) => {
     setLoadingItems((p) => ({ ...p, [billItemId]: true }));
     try {
-      const res = await fetch(API_ROUTES.orderItem(sessionId, billItemId), {
+      const res = await fetch(API_ROUTES.orderItem(sessionId!, billItemId), {
         method: "DELETE",
       });
       const data: ApiResponse<BillWithDetails> = await res.json();
@@ -306,7 +320,7 @@ export function OrderDialog({ sessionId, sessionLabel, isOpen, onClose }: OrderD
                               </button>
                               <button
                                 onClick={() => handleAdd(product)}
-                                disabled={isAdding}
+                                disabled={Object.values(loadingItems).some(Boolean)}
                                 className="ml-1 px-3 py-1 rounded-lg bg-brand/20 hover:bg-brand/30 border border-brand/40 text-brand text-xs font-semibold transition-all disabled:opacity-50 flex items-center gap-1"
                               >
                                 {isAdding ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
@@ -356,7 +370,7 @@ export function OrderDialog({ sessionId, sessionLabel, isOpen, onClose }: OrderD
                         <p className="text-sm font-semibold text-white leading-tight flex-1 min-w-0 truncate">
                           {item.description}
                         </p>
-                        <button
+                        {!billId && <button
                           onClick={() => handleRemove(item.id)}
                           disabled={isMutating}
                           className="shrink-0 text-surface-muted hover:text-danger transition-colors disabled:opacity-50"
@@ -367,11 +381,11 @@ export function OrderDialog({ sessionId, sessionLabel, isOpen, onClose }: OrderD
                           ) : (
                             <Trash2 className="h-3.5 w-3.5" />
                           )}
-                        </button>
+                        </button>}
                       </div>
                       <div className="flex items-center justify-between">
                         {/* Qty controls */}
-                        <div className="flex items-center gap-1.5">
+                        {!billId ? <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => handleUpdateQty(item.id, qty - 1)}
                             disabled={isMutating}
@@ -387,7 +401,7 @@ export function OrderDialog({ sessionId, sessionLabel, isOpen, onClose }: OrderD
                           >
                             <Plus className="h-3 w-3" />
                           </button>
-                        </div>
+                        </div> : <span className="text-sm text-surface-muted">Qty {qty}</span>}
                         <span className="font-mono text-sm font-semibold text-white">
                           {formatCurrency(Number(item.totalPrice))}
                         </span>
@@ -407,9 +421,9 @@ export function OrderDialog({ sessionId, sessionLabel, isOpen, onClose }: OrderD
                     {formatCurrency(orderTotal)}
                   </span>
                 </div>
-                <p className="text-[10px] text-surface-muted mt-1">
+                {!billId && <p className="text-[10px] text-surface-muted mt-1">
                   Gaming charges will be added when the session ends.
-                </p>
+                </p>}
               </div>
             )}
           </div>

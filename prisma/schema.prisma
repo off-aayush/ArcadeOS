@@ -370,6 +370,7 @@ model Bill {
 /// Supports time charges, food/drinks, discounts, manual adjustments and rounding.
 model BillItem {
   id          String       @id @default(cuid())
+  idempotencyKey String?   @unique // standalone item-add request; null for historical and other items
   billId      String
   bill        Bill         @relation(fields: [billId], references: [id], onDelete: Cascade)
 
