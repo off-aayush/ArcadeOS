@@ -49,6 +49,16 @@ export async function middleware(request: NextRequest) {
 
   const permissions = user.role.permissions || [];
 
+  // Spendings are restricted by exact role, independent of generic permissions.
+  const isSpendingPage = pathname === "/spendings" || pathname.startsWith("/spendings/");
+  const isSpendingApi = pathname === "/api/spendings" || pathname.startsWith("/api/spendings/");
+  if ((isSpendingPage || isSpendingApi) && user.role.name !== "SUPER_ADMIN") {
+    return NextResponse.json(
+      { success: false, error: "Super Admin access required" },
+      { status: 403 },
+    );
+  }
+
   // 3. API Route Permission Checks
   if (isApiRoute) {
     let requiredPermission: string | null = null;
