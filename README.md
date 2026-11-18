@@ -7,6 +7,7 @@ ArcadeOS is the codebase for **The Lobby**, a web app for running a gaming loung
 - Live station and session views, with per-player pricing and a warning before each session hour.
 - Customer records with a completed-visit calendar, inventory and stock, session orders, and standalone inventory sales.
 - Bills with customer-name search, discounts, adjustments, partial payments, payment-mode details, invoices, and explicit settlement of zero-value bills.
+- A Super Admin-only Spendings page for lounge expenses, with historical dates, a trend chart, and a paginated record list.
 - Staff roles, permissions, audit logs, business profile settings, and reports with a payment-mode filter.
 
 ## Run locally
