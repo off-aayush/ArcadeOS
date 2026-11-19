@@ -92,7 +92,7 @@ export function OrderDialog({ sessionId, billId, sessionLabel, isOpen, onClose, 
       const params = new URLSearchParams({ inStock: "IN_STOCK", pageSize: "100" });
       if (search) params.set("search", search);
       if (category !== "ALL") params.set("category", category);
-      const res = await fetch(`${API_ROUTES.food}?${params}`);
+      const res = await fetch(`${API_ROUTES.availableFood}?${params}`);
       const data: ApiResponse<FoodResult> = await res.json();
       if (data.success) setProducts(data.data.items);
     } catch {

@@ -6,6 +6,7 @@ export interface FoodQueryParams {
   inStock?: "ALL" | "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
   page?: number;
   pageSize?: number;
+  availableOnly?: boolean;
 }
 
 export type FoodListItem = Pick<FoodItem, "id" | "name" | "category" | "price" | "isAvailable" | "stock" | "minStock">;

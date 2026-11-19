@@ -374,7 +374,7 @@ export function BillDetailDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[700px] bg-surface-card border-surface-border text-white p-0 gap-0 overflow-hidden">
+      <DialogContent className="sm:max-w-175 bg-surface-card border-surface-border text-white p-0 gap-0 overflow-hidden">
         <DialogHeader className="print:hidden p-5 pb-4 border-b border-surface-border bg-surface/50">
           <DialogTitle className="flex items-center gap-2 text-xl font-bold tracking-tight">
             <Receipt className="h-5 w-5 text-brand" />
