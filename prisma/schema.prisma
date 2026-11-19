@@ -548,6 +548,7 @@ model Spending {
   name        String
   description String?
   amount      Decimal  @db.Decimal(12, 2)
+  paymentMethod PaymentMethod @default(CASH)
   spentAt     DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -111,6 +111,7 @@ export class SpendingService {
     if (existing) {
       if (existing.createdById !== actorId || existing.name !== input.name ||
           existing.description !== (input.description || null) ||
+          existing.paymentMethod !== input.paymentMethod ||
           !existing.amount.equals(requestedAmount) ||
           existing.spentAt.getTime() !== requestedDate.getTime()) {
         throw new SpendingConflictError();
@@ -124,6 +125,7 @@ export class SpendingService {
           name: input.name,
           description: input.description || null,
           amount: requestedAmount,
+          paymentMethod: input.paymentMethod,
           spentAt: requestedDate,
           createdById: actorId,
           updatedById: actorId,
@@ -138,6 +140,7 @@ export class SpendingService {
         });
         if (replay && replay.createdById === actorId && replay.name === input.name &&
             replay.description === (input.description || null) &&
+            replay.paymentMethod === input.paymentMethod &&
             replay.amount.equals(requestedAmount) &&
             replay.spentAt.getTime() === requestedDate.getTime()) return replay;
         throw new SpendingConflictError();
@@ -154,6 +157,7 @@ export class SpendingService {
         name: input.name,
         description: input.description || null,
         amount: new Prisma.Decimal(input.amount),
+        paymentMethod: input.paymentMethod,
         spentAt: new Date(input.spentAt),
         updatedById: actorId,
       },
