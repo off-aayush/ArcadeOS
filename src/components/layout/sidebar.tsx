@@ -14,6 +14,7 @@ import {
   Settings,
   Gamepad2,
   Coffee,
+  Wallet,
 } from "lucide-react";
 
 const navItems = [
@@ -23,6 +24,7 @@ const navItems = [
   { label: "Sessions", href: "/sessions", icon: PlayCircle },
   { label: "Inventory", href: "/inventory", icon: Coffee },
   { label: "Billing", href: "/billing", icon: Receipt },
+  { label: "Spendings", href: "/spendings", icon: Wallet, superAdminOnly: true },
   { label: "Reports", href: "/reports", icon: BarChart3 },
   { label: "Settings", href: "/settings", icon: Settings },
 ];

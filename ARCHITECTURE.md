@@ -34,4 +34,8 @@ The Billing table searches customer names on the server. It displays a linked se
 
 Reports read bills and payments and can filter revenue by recorded payment method. The business profile supplies invoice identity and receipt text. `BillDetailDialog` renders the invoice and prints it through an isolated iframe.
 
+## Lounge spendings
+
+`Spending` records are separate from bills, payments, stock movements, and revenue. Each stores a positive decimal amount, the editable `spentAt` date, immutable creator/creation fields, and updater/update fields. The Spendings service checks the user's current `SUPER_ADMIN` role in the database on every read and write; middleware and API handlers also reject other roles. The records list is paginated on the server. A separate trend query aggregates by spending date in the configured parlour timezone, using daily, weekly, or monthly buckets for the selected range. Both queries use the same date boundaries.
+
 For setup and deployment commands, see [README.md](README.md). For the current migration and verification state, see [PROJECT_STATUS.md](PROJECT_STATUS.md).
