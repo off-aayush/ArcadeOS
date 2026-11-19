@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { BillingService } from "@/features/billing/services/billing.service";
 import { generateBillSchema, billQuerySchema, standaloneSaleSchema } from "@/features/billing/validators";
 import { createSuccessResponse, createErrorResponse } from "@/lib/utils";
+import { requirePermission } from "@/lib/permissions";
+import { Permission } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,6 +37,8 @@ export async function POST(request: NextRequest) {
 
     // Route A: Standalone inventory sale (has items array)
     if (Array.isArray(body.items)) {
+      const user = await requirePermission(request, Permission.USE_INVENTORY);
+      if (user instanceof NextResponse) return user;
       const parsed = standaloneSaleSchema.safeParse(body);
       if (!parsed.success) {
         return NextResponse.json(
