@@ -64,11 +64,14 @@ export async function middleware(request: NextRequest) {
     }
 
     let requiredPermission: string | null = null;
-    for (const [prefix, perm] of Object.entries(API_PERMISSIONS)) {
-      if (isInventoryCatalogue && prefix === "/api/food/available") continue;
-      if (pathname.startsWith(prefix)) {
-        requiredPermission = perm;
-        break;
+    // The available catalogue endpoint was authorized above for transaction
+    // usage. Do not also match the broader /api/food management permission.
+    if (!isInventoryCatalogue) {
+      for (const [prefix, perm] of Object.entries(API_PERMISSIONS)) {
+        if (pathname.startsWith(prefix)) {
+          requiredPermission = perm;
+          break;
+        }
       }
     }
 
