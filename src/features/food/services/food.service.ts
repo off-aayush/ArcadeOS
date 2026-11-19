@@ -14,9 +14,11 @@ export class FoodService {
       inStock = "ALL",
       page = 1,
       pageSize = DEFAULT_PAGE_SIZE,
+      availableOnly = false,
     } = params;
 
     const where: Prisma.FoodItemWhereInput = { deletedAt: null };
+    if (availableOnly) where.isAvailable = true;
 
     if (category !== "ALL") {
       where.category = category;

@@ -92,7 +92,7 @@ export function NewStandaloneSaleDialog({ isOpen, onClose }: NewStandaloneSaleDi
     queryFn: async () => {
       const params = new URLSearchParams({ inStock: "true", category: "ALL" });
       if (debouncedItemSearch) params.set("search", debouncedItemSearch);
-      const res = await fetch(`/api/food?${params}`);
+      const res = await fetch(`/api/food/available?${params}`);
       return res.json();
     },
     enabled: isOpen && step === "items",

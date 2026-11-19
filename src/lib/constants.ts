@@ -82,6 +82,7 @@ export const API_ROUTES = {
   sessions:  "/api/sessions",
   bills:     "/api/bills",
   food:      "/api/food",
+  availableFood: "/api/food/available",
   discounts: "/api/discounts",
   payments:  "/api/payments",
   users:     "/api/users",
