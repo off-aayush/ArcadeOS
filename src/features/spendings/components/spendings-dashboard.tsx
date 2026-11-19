@@ -14,6 +14,7 @@ import { formatCurrency, formatDateTime } from "@/lib/utils";
 import type { ApiResponse } from "@/types";
 import type { SpendingRecord, SpendingTrend } from "../types";
 import { SpendingFormDialog } from "./spending-form-dialog";
+import { PAYMENT_METHOD_LABELS } from "../payment-methods";
 
 type ListResult = { records: SpendingRecord[]; total: number };
 const PAGE_SIZE = 20;
@@ -155,11 +156,12 @@ export function SpendingsDashboard() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1050px] text-sm">
+            <table className="w-full min-w-[1150px] text-sm">
               <thead>
                 <tr className="border-b border-surface-border text-left text-surface-muted">
                   <th className="px-4 py-3 font-semibold">Spending</th>
                   <th className="px-4 py-3 font-semibold text-right">Amount</th>
+                  <th className="px-4 py-3 font-semibold">Payment Method</th>
                   <th className="px-4 py-3 font-semibold">Spent At</th>
                   <th className="px-4 py-3 font-semibold">Created By</th>
                   <th className="px-4 py-3 font-semibold">Last Updated By</th>
@@ -175,6 +177,7 @@ export function SpendingsDashboard() {
                       {record.description && <p className="mt-0.5 line-clamp-2 text-xs text-surface-muted" title={record.description}>{record.description}</p>}
                     </td>
                     <td className="px-4 py-3 text-right font-mono font-semibold text-white">{formatCurrency(Number(record.amount))}</td>
+                    <td className="px-4 py-3 text-xs text-white">{PAYMENT_METHOD_LABELS[record.paymentMethod]}</td>
                     <td className="px-4 py-3 text-xs text-surface-muted">{formatDateTime(record.spentAt)}</td>
                     <td className="px-4 py-3 text-xs text-white">{record.createdBy.name}</td>
                     <td className="px-4 py-3 text-xs text-white">{record.updatedBy.name}</td>

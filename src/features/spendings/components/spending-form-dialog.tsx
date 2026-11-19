@@ -8,8 +8,10 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/toast";
 import type { SpendingRecord } from "../types";
 import { spendingSchema } from "../validators";
+import { PaymentMethod } from "@prisma/client";
+import { PAYMENT_METHOD_LABELS, PAYMENT_METHOD_OPTIONS } from "../payment-methods";
 
-type FormValues = { name: string; description: string; amount: string; spentAt: string };
+type FormValues = { name: string; description: string; amount: string; paymentMethod: PaymentMethod | ""; spentAt: string };
 type FormField = keyof FormValues;
 
 function localDateTime(date: Date) {
@@ -22,6 +24,7 @@ function valuesFor(record: SpendingRecord | null): FormValues {
     name: record?.name ?? "",
     description: record?.description ?? "",
     amount: record ? String(record.amount) : "",
+    paymentMethod: record?.paymentMethod ?? "",
     spentAt: localDateTime(record ? new Date(record.spentAt) : new Date()),
   };
 }
@@ -76,6 +79,7 @@ export function SpendingFormDialog({ record, open, onClose, onSaved }: {
       name: values.name,
       description: values.description,
       amount: values.amount,
+      paymentMethod: values.paymentMethod,
       spentAt: localDate.toISOString(),
     });
     if (!parsed.success) {
@@ -149,6 +153,19 @@ export function SpendingFormDialog({ record, open, onClose, onSaved }: {
                 aria-invalid={!!errors.amount} className="border-surface-border bg-surface text-white"
                 placeholder="0.00" />
               {errors.amount && <p className="text-xs text-danger">{errors.amount}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="spending-payment-method">Payment Method *</Label>
+              <select id="spending-payment-method" value={values.paymentMethod}
+                onChange={(event) => change("paymentMethod", event.target.value)}
+                aria-required="true" aria-invalid={!!errors.paymentMethod}
+                className="w-full rounded-lg border border-surface-border bg-surface px-3 py-2 text-sm text-white focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+                <option value="">Select a method</option>
+                {PAYMENT_METHOD_OPTIONS.map((method) => (
+                  <option key={method} value={method}>{PAYMENT_METHOD_LABELS[method]}</option>
+                ))}
+              </select>
+              {errors.paymentMethod && <p className="text-xs text-danger">{errors.paymentMethod}</p>}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="spending-date">Spending date & time *</Label>
