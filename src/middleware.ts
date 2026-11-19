@@ -52,8 +52,11 @@ export async function middleware(request: NextRequest) {
 
   // 3. API Route Permission Checks
   if (isApiRoute) {
+    const isInventoryCatalogue = pathname === "/api/food/available";
     const isInventoryTransaction = /^\/api\/(?:sessions\/[^/]+\/orders(?:\/[^/]+)?|bills\/[^/]+\/orders(?:\/[^/]+)?)$/.test(pathname);
-    if (isInventoryTransaction && !permissions.includes("USE_INVENTORY" as any)) {
+    const hasInventoryPermission = ["USE_INVENTORY", "MANAGE_INVENTORY", "MANAGE_BILLING", "MANAGE_SESSIONS"]
+      .some((permission) => permissions.includes(permission as any));
+    if ((isInventoryTransaction || isInventoryCatalogue) && !hasInventoryPermission) {
       return NextResponse.json(
         { success: false, error: "You don't have permission to use inventory in transactions" },
         { status: 403 }
@@ -62,6 +65,7 @@ export async function middleware(request: NextRequest) {
 
     let requiredPermission: string | null = null;
     for (const [prefix, perm] of Object.entries(API_PERMISSIONS)) {
+      if (isInventoryCatalogue && prefix === "/api/food/available") continue;
       if (pathname.startsWith(prefix)) {
         requiredPermission = perm;
         break;

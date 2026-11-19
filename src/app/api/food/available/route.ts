@@ -1,12 +1,12 @@
-import { FoodCategory, Permission } from "@prisma/client";
+import { FoodCategory } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { FoodService } from "@/features/food/services/food.service";
 import { createErrorResponse, createSuccessResponse } from "@/lib/utils";
-import { requirePermission } from "@/lib/permissions";
+import { requireInventoryTransactionPermission } from "@/lib/permissions";
 
 /** Read-only catalogue for validated session and billing inventory transactions. */
 export async function GET(request: NextRequest) {
-  const user = await requirePermission(request, Permission.USE_INVENTORY);
+  const user = await requireInventoryTransactionPermission(request);
   if (user instanceof NextResponse) return user;
 
   try {
