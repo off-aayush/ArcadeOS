@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import {
   LayoutDashboard,
   Monitor,
@@ -15,7 +16,6 @@ import {
   Coffee,
   Wallet,
 } from "lucide-react";
-import { useAuth } from "@/features/auth/hooks/use-auth";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -32,6 +32,14 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const permissions = user?.role.permissions ?? [];
+  const visibleItems = navItems.filter((item) => {
+    if (item.href === "/inventory") return permissions.includes("MANAGE_INVENTORY");
+    if (item.href === "/reports") return permissions.includes("VIEW_REPORTS");
+    if (item.href === "/settings") return ["MANAGE_USERS", "MANAGE_DISCOUNTS", "VIEW_AUDIT_LOGS", "MANAGE_PARLOUR_PROFILE"]
+      .some((permission) => permissions.includes(permission as any));
+    return true;
+  });
 
   return (
     <aside className="fixed inset-y-0 left-0 z-20 flex w-60 flex-col border-r border-surface-border bg-surface-card/80 backdrop-blur-sm">
@@ -46,7 +54,7 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-4 py-6">
-        {navItems.filter((item) => !("superAdminOnly" in item) || user?.role.name === "SUPER_ADMIN").map((item) => {
+        {visibleItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
 

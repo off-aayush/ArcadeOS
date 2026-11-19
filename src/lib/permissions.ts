@@ -40,3 +40,24 @@ export async function requirePermission(request: NextRequest, permission: Permis
 
   return user;
 }
+
+/**
+ * Authorize read-only catalogue access for an inventory transaction. The
+ * workflow permission is the source of access for existing sessions; the
+ * dedicated permission supports configurable roles going forward.
+ */
+export async function requireInventoryTransactionPermission(request: NextRequest): Promise<SessionUser | NextResponse> {
+  const user = await getAuthUserFromRequest(request);
+  if (!user) {
+    return NextResponse.json({ success: false, error: "Not authenticated" }, { status: 401 });
+  }
+
+  const permissions = user.role.permissions;
+  const allowed = ["USE_INVENTORY", "MANAGE_INVENTORY", "MANAGE_BILLING", "MANAGE_SESSIONS"]
+    .some((permission) => permissions.includes(permission as Permission));
+  if (!allowed) {
+    return NextResponse.json({ success: false, error: "You don't have permission to use inventory in transactions" }, { status: 403 });
+  }
+
+  return user;
+}

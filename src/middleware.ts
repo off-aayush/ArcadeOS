@@ -12,6 +12,7 @@ const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/logout"];
 
 // Global API permission mapping
 const API_PERMISSIONS: Record<string, string> = {
+  "/api/food/available": "USE_INVENTORY",
   "/api/stations": "MANAGE_STATIONS",
   "/api/sessions": "MANAGE_SESSIONS",
   "/api/customers": "MANAGE_CUSTOMERS",
@@ -61,11 +62,26 @@ export async function middleware(request: NextRequest) {
 
   // 3. API Route Permission Checks
   if (isApiRoute) {
+    const isInventoryCatalogue = pathname === "/api/food/available";
+    const isInventoryTransaction = /^\/api\/(?:sessions\/[^/]+\/orders(?:\/[^/]+)?|bills\/[^/]+\/orders(?:\/[^/]+)?)$/.test(pathname);
+    const hasInventoryPermission = ["USE_INVENTORY", "MANAGE_INVENTORY", "MANAGE_BILLING", "MANAGE_SESSIONS"]
+      .some((permission) => permissions.includes(permission as any));
+    if ((isInventoryTransaction || isInventoryCatalogue) && !hasInventoryPermission) {
+      return NextResponse.json(
+        { success: false, error: "You don't have permission to use inventory in transactions" },
+        { status: 403 }
+      );
+    }
+
     let requiredPermission: string | null = null;
-    for (const [prefix, perm] of Object.entries(API_PERMISSIONS)) {
-      if (pathname.startsWith(prefix)) {
-        requiredPermission = perm;
-        break;
+    // The available catalogue endpoint was authorized above for transaction
+    // usage. Do not also match the broader /api/food management permission.
+    if (!isInventoryCatalogue) {
+      for (const [prefix, perm] of Object.entries(API_PERMISSIONS)) {
+        if (pathname.startsWith(prefix)) {
+          requiredPermission = perm;
+          break;
+        }
       }
     }
 
@@ -78,6 +94,22 @@ export async function middleware(request: NextRequest) {
   }
 
   // 4. UI Route Permission Checks
+  if (pathname === "/inventory" || pathname.startsWith("/inventory/")) {
+    if (!permissions.includes("MANAGE_INVENTORY" as any)) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+  }
+  if (pathname === "/reports" || pathname.startsWith("/reports/")) {
+    if (!permissions.includes("VIEW_REPORTS" as any)) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+  }
+  if (pathname === "/settings" || pathname.startsWith("/settings/")) {
+    const canAccessSettings = ["MANAGE_USERS", "MANAGE_DISCOUNTS", "VIEW_AUDIT_LOGS", "MANAGE_PARLOUR_PROFILE"]
+      .some((permission) => permissions.includes(permission as any));
+    if (!canAccessSettings) return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
   if (pathname.startsWith("/settings/")) {
     let authorized = true;
     if (pathname.startsWith("/settings/users") && !permissions.includes("MANAGE_USERS" as any)) authorized = false;

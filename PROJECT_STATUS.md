@@ -1,6 +1,6 @@
 # Project status
 
-Updated 2026-11-18. ArcadeOS powers **The Lobby**. Core features and Spendings are implemented; browser checks, staging checks, and deployment remain.
+Updated 2026-11-19. ArcadeOS powers **The Lobby**. Core features are implemented; browser checks, staging checks, and deployment remain.
 
 ## Implemented
 
@@ -17,6 +17,16 @@ Updated 2026-11-18. ArcadeOS powers **The Lobby**. Core features and Spendings a
 - The form defaults to the current local date/time, validates name, amount, and date on the client and server, provides loading/success/error feedback, and confirms before discarding unsaved changes. Each successful edit changes `updatedAt` and `updatedBy` while retaining the creator and creation timestamp.
 - Only an authenticated user with the exact `SUPER_ADMIN` role can see the navigation item or use the page and API. Middleware and API handlers return 403 for other roles; every spending service operation checks the user's current active role in the database. Spendings do not alter bills, customer payments, inventory stock, or revenue.
 - Files: `prisma/schema.prisma`, `prisma/migrations/20261118000000_add_spendings/migration.sql`, `src/middleware.ts`, `src/components/layout/sidebar.tsx`, `src/app/(dashboard)/spendings/page.tsx`, `src/app/api/spendings/`, and `src/features/spendings/`.
+
+## Receptionist access and inventory transactions
+
+- Root cause: the transaction guard initially required the newly introduced `USE_INVENTORY` permission for every role, although existing Admin/Super Admin role records and JWTs contain `MANAGE_INVENTORY`. After compatibility access was added, the available catalogue path still also matched the broader `/api/food` middleware prefix, which required `MANAGE_INVENTORY`; this was the remaining Receptionist-only denial. The catalogue endpoint now uses its transaction permission check without inheriting the management endpoint's prefix check.
+- Added `USE_INVENTORY`, separate from `MANAGE_INVENTORY`. The read-only `/api/food/available` endpoint accepts the dedicated usage permission, existing management permission, or existing billing/session workflow permissions and returns only available, in-stock products. Inventory mutation APIs still require their existing `MANAGE_BILLING` or `MANAGE_SESSIONS` gate plus transaction authorization. This keeps current roles working before permission migration/token refresh while supporting dedicated usage configuration going forward.
+- Session item, standalone sale, and unpaid-bill Add Item workflows use the transaction catalogue. Standalone sale POST and bill/session order mutations have server-side transaction permission checks; stock and billing validation remain in the existing service transactions.
+- The additive migration grants usage permission to Receptionist, Admin, and Super Admin roles. Inventory CRUD and stock adjustment remain under `MANAGE_INVENTORY`.
+- Middleware now redirects Receptionists away from Inventory, Reports, and Settings pages before those page components mount. The sidebar filters these links using the shared auth query, which is already used for the current user.
+- Files: `prisma/schema.prisma`, `prisma/migrations/20261119000000_inventory_usage_permission/migration.sql`, `src/middleware.ts`, `src/components/layout/sidebar.tsx`, `src/app/api/food/available/route.ts`, `src/features/food/services/food.service.ts`, transaction picker components, and `src/app/api/bills/route.ts`.
+- Prisma validation, client generation, TypeScript check, production build, and `git diff --check` pass for this change. The configured database was not migrated. Authenticated browser/Network verification with Receptionist/Admin/Super Admin accounts remains pending; all three roles can now use their existing workflow permissions without waiting for the role migration or JWT refresh.
 
 ## Customer visit calendar
 
