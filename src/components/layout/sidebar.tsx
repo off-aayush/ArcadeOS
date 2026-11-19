@@ -13,7 +13,9 @@ import {
   Settings,
   Gamepad2,
   Coffee,
+  Wallet,
 } from "lucide-react";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -22,12 +24,14 @@ const navItems = [
   { label: "Sessions", href: "/sessions", icon: PlayCircle },
   { label: "Inventory", href: "/inventory", icon: Coffee },
   { label: "Billing", href: "/billing", icon: Receipt },
+  { label: "Spendings", href: "/spendings", icon: Wallet, superAdminOnly: true },
   { label: "Reports", href: "/reports", icon: BarChart3 },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   return (
     <aside className="fixed inset-y-0 left-0 z-20 flex w-60 flex-col border-r border-surface-border bg-surface-card/80 backdrop-blur-sm">
@@ -42,7 +46,7 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-4 py-6">
-        {navItems.map((item) => {
+        {navItems.filter((item) => !("superAdminOnly" in item) || user?.role.name === "SUPER_ADMIN").map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
 

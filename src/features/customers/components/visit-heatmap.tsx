@@ -16,11 +16,12 @@ type VisitHistory = {
 };
 
 const SHADES = [
-  "bg-surface-border/70",
-  "bg-brand/30",
-  "bg-brand/50",
-  "bg-brand/75",
-  "bg-brand",
+  // GitHub's dark contribution graph palette, from no activity to highest activity.
+  "bg-[#161b22]",
+  "bg-[#0e4429]",
+  "bg-[#006d32]",
+  "bg-[#26a641]",
+  "bg-[#39d353]",
 ];
 
 function intensity(count: number) {

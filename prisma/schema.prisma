@@ -532,11 +532,34 @@ model User {
   billsIssued      Bill[]
   paymentsReceived Payment[]
   auditLogs        AuditLog[]
+  spendingsCreated Spending[] @relation("SpendingCreatedBy")
+  spendingsUpdated Spending[] @relation("SpendingUpdatedBy")
 
   @@index([email])
   @@index([roleId])
   @@index([isActive])
   @@map("users")
+}
+
+/// Lounge expenses are independent of customer billing and inventory stock.
+model Spending {
+  id          String   @id @default(cuid())
+  requestKey  String?  @unique
+  name        String
+  description String?
+  amount      Decimal  @db.Decimal(12, 2)
+  spentAt     DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String
+  createdBy   User     @relation("SpendingCreatedBy", fields: [createdById], references: [id])
+  updatedById String
+  updatedBy   User     @relation("SpendingUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([spentAt, id])
+  @@index([createdById])
+  @@index([updatedById])
+  @@map("spendings")
 }
 
 /// Immutable audit trail. Never updated or deleted.
