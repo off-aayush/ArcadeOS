@@ -1,6 +1,6 @@
 # Project status
 
-Updated 2026-11-18. ArcadeOS powers **The Lobby**. Core features and Spendings are implemented; browser checks, staging checks, and deployment remain.
+Updated 2026-11-20. ArcadeOS powers **The Lobby**. Core features and Spendings are implemented; browser checks, staging checks, and deployment remain.
 
 ## Implemented
 
@@ -15,6 +15,8 @@ Updated 2026-11-18. ArcadeOS powers **The Lobby**. Core features and Spendings a
 - The new `Spending` model stores name, optional description, positive `Decimal(12,2)` amount, editable `spentAt`, creation/update timestamps, creator/updater relations, and an optional unique request key for safe create retries. The additive migration `20261118000000_add_spendings` creates only its table, indexes, foreign keys, and positive-amount constraint.
 - `/spendings` shows a spending trend above records. A shared date-range selection filters both. The server aggregates by `spentAt` in the parlour timezone using daily, weekly, or monthly periods; the list uses server-side pagination and newest-spending-first order. An edit invalidates both cached queries. Historical entries outside the selected range switch the view to their month after saving.
 - The form defaults to the current local date/time, validates name, amount, and date on the client and server, provides loading/success/error feedback, and confirms before discarding unsaved changes. Each successful edit changes `updatedAt` and `updatedBy` while retaining the creator and creation timestamp.
+- Each spending now requires a method from the existing Prisma `PaymentMethod` enum. The create/edit form validates and persists it, and the table displays Cash, UPI, Card, Wallet, or Complimentary.
+- Migration `20261120000000_add_spending_payment_method` adds a non-null enum column with a `CASH` default, preserving and backfilling existing rows without changing their other fields. Read-only inspection found 3 existing spending records in the configured local database. This migration has not been applied yet.
 - Only an authenticated user with the exact `SUPER_ADMIN` role can see the navigation item or use the page and API. Middleware and API handlers return 403 for other roles; every spending service operation checks the user's current active role in the database. Spendings do not alter bills, customer payments, inventory stock, or revenue.
 - Files: `prisma/schema.prisma`, `prisma/migrations/20261118000000_add_spendings/migration.sql`, `src/middleware.ts`, `src/components/layout/sidebar.tsx`, `src/app/(dashboard)/spendings/page.tsx`, `src/app/api/spendings/`, and `src/features/spendings/`.
 
@@ -45,6 +47,7 @@ There are **12 versioned Prisma migrations**. The latest, `20261118000000_add_sp
 - Read-only customer visit checks covered zero and one visit, multiple visits on one day, dates across months and years, excluded session statuses, timezone conversion, and agreement between the table's completed-session count and the heatmap total. Customer search and pagination were also checked.
 - Calendar render and placement calculations were checked with empty and populated histories, 52-54 week layouts, and viewport widths from 240 to 1280 pixels. `npm run type-check` and `npm run build` passed after the popup refinement.
 - Spendings: Prisma validation/client generation, TypeScript checking, and a production build passed. An isolated PostgreSQL database applied all 12 migrations, then tested creation, history dates crossing a local month boundary, edit attribution/timestamps, chart totals after edits, daily/weekly/monthly grouping, pagination/sorting, duplicate request replay and conflict, invalid amounts, role denials in middleware/API/service, and separation from bills/payments/inventory. The temporary database and test script were removed. The additive migration was then applied to the configured local database.
+- Spending payment method: Prisma validation/generation, TypeScript checking, and production build pass. Before adding this migration, the configured database reported 12 migrations up to date and a read-only count found 3 spending records. The migration's `CASH` default will backfill them without deleting records. Per-method create/edit, invalid-value, authorization, and post-migration data checks remain pending because the migration has not been applied; it remains unapplied to the configured database.
 - A browser walkthrough of Spendings, the customer popup, and the latest billing/printed-invoice UI has not been recorded. Form interaction, visual placement, keyboard and touch behavior, and printed output still need hands-on checks.
 
 ## Remaining work and known behavior
